@@ -37,7 +37,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | Always use official nankanadistributors.com URLs in .env (local + prod).
-    | Local dev maps hostnames via /etc/hosts + Herd proxy — see docs/DOMAINS.md.
+    | API: https://nankanadistributors.com/api/v1
+    | Admin: https://nankanadistributors.com/admin
     |
     */
 

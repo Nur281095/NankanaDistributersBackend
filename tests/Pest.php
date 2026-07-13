@@ -80,10 +80,10 @@ function configurePaymentGateways(): void
         'payments.jazzcash.merchant_id' => 'MC12345',
         'payments.jazzcash.password' => 'test-password',
         'payments.jazzcash.integrity_salt' => 'test-salt-key12',
-        'payments.jazzcash.return_url' => 'https://api.nankanadistributors.com/api/v1/payments/callback/jazzcash',
+        'payments.jazzcash.return_url' => 'https://nankanadistributors.com/api/v1/payments/callback/jazzcash',
         'payments.easypaisa.store_id' => '12345',
         'payments.easypaisa.hash_key' => '0123456789abcdef',
-        'payments.easypaisa.postback_url' => 'https://api.nankanadistributors.com/api/v1/payments/callback/easypaisa',
+        'payments.easypaisa.postback_url' => 'https://nankanadistributors.com/api/v1/payments/callback/easypaisa',
     ]);
 }
 

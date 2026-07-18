@@ -1,6 +1,7 @@
 <?php
 
 require __DIR__.'/api/catalog.php';
+require __DIR__.'/api/home.php';
 require __DIR__.'/api/settings.php';
 require __DIR__.'/api/checkout.php';
 require __DIR__.'/api/payments.php';

@@ -11,6 +11,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CartService
 {
+    public const MAX_ITEM_QUANTITY = 999;
+
     public function __construct(
         private readonly CatalogService $catalogService,
     ) {}
@@ -32,6 +34,8 @@ class CartService
      */
     public function addItem(User $user, array $data): Cart
     {
+        $this->assertQuantityWithinLimit($data['quantity']);
+
         return DB::transaction(function () use ($user, $data): Cart {
             $product = $this->catalogService->findPurchasableProduct($data['product_id'], lockForUpdate: true);
             $this->catalogService->assertStockAvailable($product, $data['quantity']);
@@ -46,6 +50,7 @@ class CartService
 
             if ($existingItem !== null) {
                 $newQuantity = $existingItem->quantity + $data['quantity'];
+                $this->assertQuantityWithinLimit($newQuantity);
                 $this->catalogService->assertStockAvailable($product, $newQuantity);
 
                 $existingItem->update([
@@ -67,8 +72,9 @@ class CartService
     public function updateItem(User $user, CartItem $cartItem, int $quantity): Cart
     {
         $this->assertCartItemOwnedByUser($user, $cartItem);
+        $this->assertQuantityWithinLimit($quantity);
 
-        return DB::transaction(function () use ($user, $cartItem, $quantity): Cart {
+        return DB::transaction(function () use ($cartItem, $quantity): Cart {
             $product = $this->catalogService->findPurchasableProduct($cartItem->product_id, lockForUpdate: true);
             $this->catalogService->assertStockAvailable($product, $quantity);
 
@@ -163,6 +169,16 @@ class CartService
             throw new BusinessException(
                 'Cart item not found.',
                 Response::HTTP_NOT_FOUND,
+            );
+        }
+    }
+
+    private function assertQuantityWithinLimit(int $quantity): void
+    {
+        if ($quantity < 1 || $quantity > self::MAX_ITEM_QUANTITY) {
+            throw new BusinessException(
+                'Cart item quantity must be between 1 and '.self::MAX_ITEM_QUANTITY.'.',
+                Response::HTTP_UNPROCESSABLE_ENTITY,
             );
         }
     }

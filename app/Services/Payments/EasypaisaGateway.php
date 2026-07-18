@@ -61,6 +61,21 @@ class EasypaisaGateway
      */
     public function parseCallback(array $payload): array
     {
+        $this->assertConfigured();
+
+        $providedHash = (string) ($payload['merchantHashedResp'] ?? '');
+
+        if (! EasypaisaSignature::verifyResponse(
+            $payload,
+            (string) config('payments.easypaisa.hash_key'),
+            $providedHash,
+        )) {
+            throw new BusinessException(
+                'Invalid Easypaisa callback signature.',
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+            );
+        }
+
         $reference = (string) ($payload['orderRefNum'] ?? $payload['orderRefNumber'] ?? '');
 
         if ($reference === '') {
@@ -70,27 +85,28 @@ class EasypaisaGateway
             );
         }
 
+        $configuredStoreId = (string) config('payments.easypaisa.store_id');
+        $callbackStoreId = (string) ($payload['storeId'] ?? '');
+
+        if ($callbackStoreId === '' || $callbackStoreId !== $configuredStoreId) {
+            throw new BusinessException(
+                'Easypaisa callback store ID mismatch.',
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+            );
+        }
+
         $status = (string) ($payload['status'] ?? $payload['transactionStatus'] ?? '');
         $responseCode = isset($payload['responseCode']) ? (string) $payload['responseCode'] : null;
         $amount = isset($payload['amount']) ? (string) $payload['amount'] : null;
-
-        if (isset($payload['storeId'])) {
-            $storeId = (string) config('payments.easypaisa.store_id');
-
-            if ($storeId !== '' && (string) $payload['storeId'] !== $storeId) {
-                throw new BusinessException(
-                    'Easypaisa callback store ID mismatch.',
-                    Response::HTTP_UNPROCESSABLE_ENTITY,
-                );
-            }
-        }
 
         return [
             'reference' => $reference,
             'transaction_id' => isset($payload['transactionId']) ? (string) $payload['transactionId'] : null,
             'status' => $status,
             'response_code' => $responseCode,
-            'response_message' => isset($payload['desc']) ? (string) $payload['desc'] : null,
+            'response_message' => isset($payload['responseDesc'])
+                ? (string) $payload['responseDesc']
+                : (isset($payload['desc']) ? (string) $payload['desc'] : null),
             'amount' => $amount,
             'payload' => $payload,
         ];

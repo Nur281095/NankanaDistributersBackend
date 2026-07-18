@@ -7,7 +7,6 @@ use App\Jobs\SendAppNotificationJob;
 use App\Jobs\SendTemplatedEmailJob;
 use App\Models\Admin;
 use App\Models\AppNotification;
-use App\Models\EmailLog;
 use App\Models\Product;
 use App\Services\InventoryService;
 use App\Services\LowStockAlertService;
@@ -15,10 +14,11 @@ use Database\Seeders\AdminSeeder;
 use Database\Seeders\DemoCatalogSeeder;
 use Database\Seeders\EmailTemplateSeeder;
 use Database\Seeders\SettingsSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 
-uses(Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     Cache::flush();
@@ -38,10 +38,10 @@ describe('LowStockAlertService', function (): void {
     it('notifies admins and queues a low stock email when stock crosses the threshold', function (): void {
         Queue::fake();
 
-        $this->product->update([
+        Product::withoutEvents(fn () => $this->product->update([
             'stock_quantity' => 12,
             'low_stock_threshold' => 10,
-        ]);
+        ]));
 
         app(LowStockAlertService::class)->checkAfterStockChange(
             product: $this->product->fresh(),
@@ -49,23 +49,40 @@ describe('LowStockAlertService', function (): void {
             newQuantity: 9,
         );
 
-        Queue::assertPushed(SendAppNotificationJob::class, function (SendAppNotificationJob $job): bool {
-            return $job->adminId === $this->admin->id
-                && $job->type === NotificationType::LowStock;
-        });
-
+        Queue::assertPushed(SendAppNotificationJob::class);
         Queue::assertPushed(SendTemplatedEmailJob::class);
 
-        expect(AppNotification::query()->where('type', NotificationType::LowStock)->count())->toBe(0);
+        expect(AppNotification::query()->where('type', NotificationType::LowStock)->count())->toBe(1);
+    });
+
+    it('alerts when the low stock threshold is raised above current stock', function (): void {
+        Queue::fake();
+
+        Product::withoutEvents(fn () => $this->product->update([
+            'stock_quantity' => 12,
+            'low_stock_threshold' => 10,
+        ]));
+
+        $product = $this->product->fresh();
+        $product->low_stock_threshold = 15;
+
+        app(LowStockAlertService::class)->checkIfEnteredLowStock(
+            product: $product,
+            previousQuantity: 12,
+            previousThreshold: 10,
+        );
+
+        Queue::assertPushed(SendAppNotificationJob::class);
+        Queue::assertPushed(SendTemplatedEmailJob::class);
     });
 
     it('does not alert when stock was already below the threshold', function (): void {
         Queue::fake();
 
-        $this->product->update([
+        Product::withoutEvents(fn () => $this->product->update([
             'stock_quantity' => 8,
             'low_stock_threshold' => 10,
-        ]);
+        ]));
 
         app(LowStockAlertService::class)->checkAfterStockChange(
             product: $this->product->fresh(),
@@ -79,10 +96,10 @@ describe('LowStockAlertService', function (): void {
     it('debounces repeated low stock alerts for the same product', function (): void {
         Queue::fake();
 
-        $this->product->update([
+        Product::withoutEvents(fn () => $this->product->update([
             'stock_quantity' => 15,
             'low_stock_threshold' => 10,
-        ]);
+        ]));
 
         $service = app(LowStockAlertService::class);
 
@@ -98,13 +115,13 @@ describe('InventoryService low stock integration', function (): void {
     it('triggers a low stock alert after a manual stock adjustment crosses the threshold', function (): void {
         Queue::fake();
 
-        $this->product->update([
+        Product::withoutEvents(fn () => $this->product->update([
             'stock_quantity' => 12,
             'low_stock_threshold' => 10,
-        ]);
+        ]));
 
         app(InventoryService::class)->adjustStock(
-            product: $this->product,
+            product: $this->product->fresh(),
             quantityChange: -3,
             admin: $this->admin,
             type: InventoryLogType::ManualAdjustment,

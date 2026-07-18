@@ -4,6 +4,7 @@ namespace App\Filament\Resources\OfferResource\RelationManagers;
 
 use App\Enums\OfferTargetType;
 use App\Filament\Support\OfferFormHelper;
+use App\Models\OfferTarget;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -12,6 +13,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Unique;
 
 class TargetsRelationManager extends RelationManager
 {
@@ -46,6 +48,19 @@ class TargetsRelationManager extends RelationManager
                     ->searchable()
                     ->required()
                     ->disabled(fn (Get $get): bool => blank($get('target_type')))
+                    ->unique(
+                        table: OfferTarget::class,
+                        column: 'target_id',
+                        ignoreRecord: true,
+                        modifyRuleUsing: function (Unique $rule, Get $get): Unique {
+                            return $rule
+                                ->where('offer_id', $this->getOwnerRecord()->getKey())
+                                ->where('target_type', (string) $get('target_type'));
+                        },
+                    )
+                    ->validationMessages([
+                        'unique' => 'This target is already attached to the offer.',
+                    ])
                     ->native(false),
             ]);
     }

@@ -7,4 +7,5 @@ enum EmailLogStatus: string
     case Sent = 'sent';
     case Failed = 'failed';
     case Queued = 'queued';
+    case Sending = 'sending';
 }

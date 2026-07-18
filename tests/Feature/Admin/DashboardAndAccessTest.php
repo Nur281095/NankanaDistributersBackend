@@ -1,8 +1,10 @@
 <?php
 
 use App\Enums\AdminStatus;
+use App\Enums\NotificationType;
 use App\Enums\OrderPaymentStatus;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
 use App\Filament\Widgets\LowStockProductsWidget;
 use App\Filament\Widgets\OrdersByStatusChartWidget;
 use App\Filament\Widgets\SalesChartWidget;
@@ -15,6 +17,7 @@ use App\Models\Company;
 use App\Models\CustomerAddress;
 use App\Models\EmailTemplate;
 use App\Models\GuestCustomer;
+use App\Models\HomeSection;
 use App\Models\InventoryLog;
 use App\Models\Offer;
 use App\Models\OfferTarget;
@@ -28,10 +31,12 @@ use App\Services\DashboardService;
 use Database\Seeders\AdminSeeder;
 use Database\Seeders\DemoCatalogSeeder;
 use Database\Seeders\EmailTemplateSeeder;
+use Database\Seeders\HomeSectionsSeeder;
 use Database\Seeders\SettingsSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 
-uses(Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->seed([
@@ -39,6 +44,7 @@ beforeEach(function (): void {
         SettingsSeeder::class,
         EmailTemplateSeeder::class,
         DemoCatalogSeeder::class,
+        HomeSectionsSeeder::class,
     ]);
 
     $this->admin = Admin::query()->where('email', 'admin@nankanadistributors.com')->firstOrFail();
@@ -59,6 +65,7 @@ describe('Admin access policies', function (): void {
             [GuestCustomer::class, null],
             [Offer::class, null],
             [OfferTarget::class, null],
+            [HomeSection::class, HomeSection::query()->firstOrFail()],
             [EmailTemplate::class, EmailTemplate::query()->firstOrFail()],
             [AppNotification::class, null],
             [Setting::class, Setting::query()->firstOrFail()],
@@ -83,7 +90,7 @@ describe('Admin access policies', function (): void {
     });
 
     it('registers customer address policy for api use', function (): void {
-        $address = \App\Models\CustomerAddress::query()->create([
+        $address = CustomerAddress::query()->create([
             'user_id' => $this->user->id,
             'name' => $this->user->name,
             'phone' => $this->user->phone,
@@ -149,7 +156,7 @@ describe('DashboardService metrics', function (): void {
             'delivery_charges' => '0.00',
             'discount_amount' => '0.00',
             'grand_total' => '100.00',
-            'payment_method' => \App\Enums\PaymentMethod::Cod,
+            'payment_method' => PaymentMethod::Cod,
             'payment_status' => OrderPaymentStatus::CodPending,
             'order_status' => OrderStatus::Cancelled,
             'cancellation_deadline' => now()->addMinutes(5),
@@ -186,7 +193,7 @@ describe('DashboardService metrics', function (): void {
             'admin_id' => $this->admin->id,
             'title' => 'New order',
             'message' => 'An order was placed.',
-            'type' => \App\Enums\NotificationType::Admin,
+            'type' => NotificationType::Admin,
             'is_read' => false,
         ]);
 

@@ -3,6 +3,10 @@
 namespace App\Models;
 
 use App\Enums\CatalogStatus;
+use App\Enums\OfferTargetType;
+use App\Models\Concerns\CleansOfferTargets;
+use App\Models\Concerns\CleansPublicMedia;
+use App\Services\LowStockAlertService;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -32,7 +36,42 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 ])]
 class Product extends Model
 {
-    use HasFactory, SoftDeletes;
+    use CleansOfferTargets;
+    use CleansPublicMedia;
+    use HasFactory;
+    use SoftDeletes;
+
+    protected static function booted(): void
+    {
+        static::updated(function (Product $product): void {
+            if (! $product->wasChanged(['stock_quantity', 'low_stock_threshold'])) {
+                return;
+            }
+
+            app(LowStockAlertService::class)->checkIfEnteredLowStock(
+                product: $product,
+                previousQuantity: (int) $product->getOriginal('stock_quantity'),
+                previousThreshold: (int) $product->getOriginal('low_stock_threshold'),
+            );
+        });
+
+        static::forceDeleting(function (Product $product): void {
+            $product->images()->get()->each->delete();
+        });
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function publicMediaAttributes(): array
+    {
+        return ['image'];
+    }
+
+    protected function offerTargetType(): OfferTargetType
+    {
+        return OfferTargetType::Product;
+    }
 
     /**
      * @return BelongsTo<Company, $this>

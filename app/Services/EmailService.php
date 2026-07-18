@@ -94,24 +94,53 @@ class EmailService
      */
     public function send(EmailLog $emailLog): void
     {
-        if ($emailLog->status === EmailLogStatus::Sent) {
+        if (in_array($emailLog->status, [EmailLogStatus::Sent, EmailLogStatus::Failed], true)) {
             return;
         }
 
-        Mail::to($emailLog->recipient)->send(new TemplatedMail(
-            mailSubject: $emailLog->subject,
-            mailBody: (string) $emailLog->body,
-        ));
+        $claimed = EmailLog::query()
+            ->whereKey($emailLog->id)
+            ->where('status', EmailLogStatus::Queued)
+            ->update([
+                'status' => EmailLogStatus::Sending,
+                'error_message' => null,
+            ]);
 
-        $emailLog->update([
-            'status' => EmailLogStatus::Sent,
-            'sent_at' => now(),
-            'error_message' => null,
-        ]);
+        if ($claimed === 0) {
+            return;
+        }
+
+        $emailLog->refresh();
+
+        try {
+            Mail::to($emailLog->recipient)->send(new TemplatedMail(
+                mailSubject: $emailLog->subject,
+                mailBody: (string) $emailLog->body,
+            ));
+
+            $emailLog->update([
+                'status' => EmailLogStatus::Sent,
+                'sent_at' => now(),
+                'error_message' => null,
+            ]);
+        } catch (\Throwable $exception) {
+            EmailLog::query()
+                ->whereKey($emailLog->id)
+                ->where('status', EmailLogStatus::Sending)
+                ->update([
+                    'status' => EmailLogStatus::Queued,
+                ]);
+
+            throw $exception;
+        }
     }
 
     public function markFailed(EmailLog $emailLog, string $errorMessage): void
     {
+        if ($emailLog->status === EmailLogStatus::Sent) {
+            return;
+        }
+
         $emailLog->update([
             'status' => EmailLogStatus::Failed,
             'error_message' => Str::limit($errorMessage, 1000),

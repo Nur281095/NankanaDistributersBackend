@@ -39,7 +39,10 @@ return [
     |
     */
 
-    'debug' => (bool) env('APP_DEBUG', false),
+    // Never expose stack traces in production, even if APP_DEBUG is mis-set.
+    'debug' => env('APP_ENV') === 'production'
+        ? false
+        : (bool) env('APP_DEBUG', false),
 
     /*
     |--------------------------------------------------------------------------

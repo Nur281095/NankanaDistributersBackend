@@ -5,10 +5,13 @@ namespace App\Services;
 use App\Enums\PaymentMethod;
 use App\Enums\UserStatus;
 use App\Exceptions\BusinessException;
+use App\Models\Cart;
 use App\Models\GuestCustomer;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\PersonalAccessToken;
 use Symfony\Component\HttpFoundation\Response;
 
 class CheckoutService
@@ -44,14 +47,14 @@ class CheckoutService
     /**
      * @param  array<string, mixed>  $input
      */
-    public function placeOrder(?User $user, array $input): \App\Models\Order
+    public function placeOrder(?User $user, array $input): Order
     {
         $paymentMethod = PaymentMethod::from($input['payment_method']);
         $this->assertPaymentMethodAllowed($paymentMethod);
 
         $delivery = $this->resolveDeliveryDetails($user, $input);
 
-        return DB::transaction(function () use ($user, $input, $paymentMethod, $delivery): \App\Models\Order {
+        return DB::transaction(function () use ($user, $input, $paymentMethod, $delivery): Order {
             $lines = $this->resolveCheckoutLines($user, $input, lockProducts: true);
             $totals = $this->calculateTotals($lines);
 
@@ -87,7 +90,7 @@ class CheckoutService
                 /** @var Product $product */
                 $product = $line['product'];
                 $this->inventoryService->decrementForOrder(
-                    product: $product->fresh(),
+                    product: $product,
                     quantity: $line['quantity'],
                     orderId: $order->id,
                 );
@@ -108,7 +111,7 @@ class CheckoutService
             return null;
         }
 
-        $token = \Laravel\Sanctum\PersonalAccessToken::findToken($bearerToken);
+        $token = PersonalAccessToken::findToken($bearerToken);
         $user = $token?->tokenable;
 
         if (! $user instanceof User) {
@@ -213,7 +216,7 @@ class CheckoutService
      *     product: Product
      * }>
      */
-    private function lockedCheckoutLinesFromCart(\App\Models\Cart $cart): array
+    private function lockedCheckoutLinesFromCart(Cart $cart): array
     {
         $cart = $cart->load('items');
 

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('app_notifications', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained()->cascadeOnDelete();
-            $table->foreignId('admin_id')->nullable()->constrained()->cascadeOnDelete();
+            $table->foreignId('admin_id')->nullable()->constrained()->nullOnDelete();
             $table->string('title');
             $table->string('message', 1000);
             $table->string('type', 20);

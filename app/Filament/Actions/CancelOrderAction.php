@@ -3,11 +3,13 @@
 namespace App\Filament\Actions;
 
 use App\Enums\OrderStatus;
+use App\Exceptions\BusinessException;
 use App\Models\Order;
 use App\Services\OrderService;
 use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Gate;
 
 class CancelOrderAction
 {
@@ -43,13 +45,15 @@ class CancelOrderAction
                     return;
                 }
 
+                Gate::forUser($admin)->authorize('update', $record);
+
                 try {
                     $orderService->cancelOrderByAdmin(
                         order: $record,
                         admin: $admin,
                         note: $data['note'] ?? null,
                     );
-                } catch (\App\Exceptions\BusinessException $exception) {
+                } catch (BusinessException $exception) {
                     Notification::make()
                         ->title('Cancellation failed')
                         ->body($exception->getMessage())

@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\OfferResource\Pages;
 
-use App\Filament\Concerns\NormalizesCatalogSlug;
+use App\Exceptions\BusinessException;
 use App\Filament\Resources\OfferResource;
 use App\Services\OfferService;
 use Filament\Resources\Pages\CreateRecord;
@@ -20,7 +20,7 @@ class CreateOffer extends CreateRecord
     {
         try {
             app(OfferService::class)->validate($data);
-        } catch (\App\Exceptions\BusinessException $exception) {
+        } catch (BusinessException $exception) {
             throw ValidationException::withMessages([
                 'discount_value' => [$exception->getMessage()],
             ]);

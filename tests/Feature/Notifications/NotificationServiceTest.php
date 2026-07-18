@@ -3,15 +3,17 @@
 use App\Enums\AdminStatus;
 use App\Enums\NotificationType;
 use App\Jobs\SendAppNotificationJob;
+use App\Jobs\SendPushNotificationJob;
 use App\Models\Admin;
 use App\Models\AppNotification;
 use App\Models\User;
 use App\Services\NotificationService;
 use Database\Seeders\AdminSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 
-uses(Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->seed(AdminSeeder::class);
@@ -35,7 +37,7 @@ describe('NotificationService', function (): void {
         expect($notification->admin_id)->toBeNull();
         expect($notification->type)->toBe(NotificationType::Order);
         expect($notification->is_read)->toBeFalse();
-        expect($notification->data)->toBe(['order_id' => 12]);
+        expect($notification->data['order_id'] ?? null)->toBe(12);
     });
 
     it('creates an in-app notification for an admin', function (): void {
@@ -54,21 +56,23 @@ describe('NotificationService', function (): void {
         expect($notification->user_id)->toBeNull();
     });
 
-    it('queues notification creation through the job', function (): void {
+    it('persists the notification immediately and queues push delivery', function (): void {
         Queue::fake();
 
         $user = User::factory()->create();
 
-        app(NotificationService::class)->queueForUser(
+        $notification = app(NotificationService::class)->queueForUser(
             user: $user,
             title: 'Payment received',
             message: 'Your payment was successful.',
             type: NotificationType::Payment,
         );
 
-        Queue::assertPushed(SendAppNotificationJob::class, function (SendAppNotificationJob $job) use ($user): bool {
-            return $job->userId === $user->id
-                && $job->type === NotificationType::Payment;
+        expect($notification->user_id)->toBe($user->id);
+        expect($notification->type)->toBe(NotificationType::Payment);
+
+        Queue::assertPushed(SendAppNotificationJob::class, function (SendAppNotificationJob $job) use ($notification): bool {
+            return $job->notificationId === $notification->id;
         });
     });
 
@@ -115,12 +119,12 @@ describe('NotificationService', function (): void {
 });
 
 describe('SendAppNotificationJob', function (): void {
-    it('persists a queued customer notification', function (): void {
-        $user = User::factory()->create();
+    it('dispatches push only once for a queued customer notification', function (): void {
+        Queue::fake();
 
-        $job = new SendAppNotificationJob(
-            userId: $user->id,
-            adminId: null,
+        $user = User::factory()->create();
+        $notification = app(NotificationService::class)->queueForUser(
+            user: $user,
             title: 'Order placed',
             message: 'Your order ORD-1001 was placed.',
             type: NotificationType::Order,
@@ -129,14 +133,12 @@ describe('SendAppNotificationJob', function (): void {
             referenceId: 7,
         );
 
+        $job = new SendAppNotificationJob($notification->id);
+        $job->handle(app(NotificationService::class));
         $job->handle(app(NotificationService::class));
 
-        $this->assertDatabaseHas('app_notifications', [
-            'user_id' => $user->id,
-            'title' => 'Order placed',
-            'type' => NotificationType::Order->value,
-            'reference_id' => 7,
-        ]);
+        Queue::assertPushed(SendPushNotificationJob::class, 1);
+        expect(AppNotification::query()->where('user_id', $user->id)->count())->toBe(1);
     });
 });
 

@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\InventoryLogResource\Pages;
 
 use App\Filament\Resources\InventoryLogResource;
-use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
 
 class ViewInventoryLog extends ViewRecord
@@ -12,8 +11,6 @@ class ViewInventoryLog extends ViewRecord
 
     protected function getHeaderActions(): array
     {
-        return [
-            Actions\EditAction::make(),
-        ];
+        return [];
     }
 }

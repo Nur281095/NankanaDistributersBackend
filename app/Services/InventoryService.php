@@ -12,10 +12,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 class InventoryService
 {
-    public function __construct(
-        private readonly LowStockAlertService $lowStockAlertService,
-    ) {}
-
     public function adjustStock(
         Product $product,
         int $quantityChange,
@@ -48,7 +44,7 @@ class InventoryService
 
             $lockedProduct->update(['stock_quantity' => $newQuantity]);
 
-            $log = InventoryLog::query()->create([
+            return InventoryLog::query()->create([
                 'product_id' => $lockedProduct->id,
                 'admin_id' => $admin->id,
                 'type' => $type,
@@ -59,33 +55,30 @@ class InventoryService
                 'reference_id' => null,
                 'note' => $note,
             ]);
-
-            $this->lowStockAlertService->checkAfterStockChange(
-                product: $lockedProduct->fresh(),
-                oldQuantity: $oldQuantity,
-                newQuantity: $newQuantity,
-            );
-
-            return $log;
         });
     }
 
     public function decrementForOrder(Product $product, int $quantity, int $orderId): void
     {
-        $oldQuantity = $product->stock_quantity;
+        $lockedProduct = Product::query()
+            ->lockForUpdate()
+            ->whereKey($product->id)
+            ->firstOrFail();
+
+        $oldQuantity = $lockedProduct->stock_quantity;
         $newQuantity = $oldQuantity - $quantity;
 
         if ($newQuantity < 0) {
             throw new BusinessException(
-                "Insufficient stock for {$product->name}.",
+                "Insufficient stock for {$lockedProduct->name}.",
                 Response::HTTP_UNPROCESSABLE_ENTITY,
             );
         }
 
-        $product->update(['stock_quantity' => $newQuantity]);
+        $lockedProduct->update(['stock_quantity' => $newQuantity]);
 
         InventoryLog::query()->create([
-            'product_id' => $product->id,
+            'product_id' => $lockedProduct->id,
             'type' => InventoryLogType::OrderPlaced,
             'old_quantity' => $oldQuantity,
             'new_quantity' => $newQuantity,
@@ -94,23 +87,22 @@ class InventoryService
             'reference_id' => $orderId,
             'note' => 'Stock reduced for order placement.',
         ]);
-
-        $this->lowStockAlertService->checkAfterStockChange(
-            product: $product->fresh(),
-            oldQuantity: $oldQuantity,
-            newQuantity: $newQuantity,
-        );
     }
 
     public function restoreForCancelledOrder(Product $product, int $quantity, int $orderId): void
     {
-        $oldQuantity = $product->stock_quantity;
+        $lockedProduct = Product::query()
+            ->lockForUpdate()
+            ->whereKey($product->id)
+            ->firstOrFail();
+
+        $oldQuantity = $lockedProduct->stock_quantity;
         $newQuantity = $oldQuantity + $quantity;
 
-        $product->update(['stock_quantity' => $newQuantity]);
+        $lockedProduct->update(['stock_quantity' => $newQuantity]);
 
         InventoryLog::query()->create([
-            'product_id' => $product->id,
+            'product_id' => $lockedProduct->id,
             'type' => InventoryLogType::OrderCancelled,
             'old_quantity' => $oldQuantity,
             'new_quantity' => $newQuantity,

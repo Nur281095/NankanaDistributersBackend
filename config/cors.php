@@ -8,7 +8,8 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => $allowedOrigins !== [] ? $allowedOrigins : ['*'],
+    // Empty list denies browser cross-origin access (never fall back to "*").
+    'allowed_origins' => $allowedOrigins,
 
     'allowed_origins_patterns' => [],
 

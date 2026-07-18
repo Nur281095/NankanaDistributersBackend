@@ -55,4 +55,50 @@ class EasypaisaSignature
             2,
         ) === 0;
     }
+
+    /**
+     * Build the callback map string used for merchantHashedResp verification.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public static function buildResponseMapString(array $payload): string
+    {
+        $reference = (string) ($payload['orderRefNumber'] ?? $payload['orderRefNum'] ?? '');
+        $responseCode = (string) ($payload['responseCode'] ?? '');
+        $responseDesc = (string) ($payload['responseDesc'] ?? $payload['desc'] ?? '');
+        $storeId = (string) ($payload['storeId'] ?? '');
+
+        return 'orderRefNumber='.$reference
+            .'&responseCode='.$responseCode
+            .'&responseDesc='.$responseDesc
+            .'&storeId='.$storeId;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public static function signResponse(array $payload, string $hashKey): string
+    {
+        return base64_encode(hash_hmac(
+            'sha256',
+            self::buildResponseMapString($payload),
+            $hashKey,
+            true,
+        ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public static function verifyResponse(array $payload, string $hashKey, string $providedHash): bool
+    {
+        if ($providedHash === '' || $hashKey === '') {
+            return false;
+        }
+
+        return hash_equals(
+            self::signResponse($payload, $hashKey),
+            $providedHash,
+        );
+    }
 }

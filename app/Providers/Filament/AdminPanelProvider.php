@@ -26,7 +26,9 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->passwordReset()
             ->authGuard('admin')
+            ->authPasswordBroker('admins')
             ->brandName('Nankana Distributors')
             ->colors([
                 'primary' => Color::Amber,

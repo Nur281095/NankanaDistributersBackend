@@ -27,6 +27,22 @@ class OrderStatusLog extends Model
     }
 
     /**
+     * Resolve the actor that changed the status (admin, customer, or null for system).
+     */
+    public function changer(): Admin|User|null
+    {
+        if ($this->changed_by === null) {
+            return null;
+        }
+
+        return match ($this->changed_by_type) {
+            ChangedByType::Admin => Admin::query()->withTrashed()->find($this->changed_by),
+            ChangedByType::Customer => User::query()->withTrashed()->find($this->changed_by),
+            ChangedByType::System => null,
+        };
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

@@ -3,11 +3,13 @@
 namespace App\Filament\Actions;
 
 use App\Enums\InventoryLogType;
+use App\Exceptions\BusinessException;
 use App\Models\Product;
 use App\Services\InventoryService;
 use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 class AdjustStockAction
@@ -65,6 +67,8 @@ class AdjustStockAction
                     return;
                 }
 
+                Gate::forUser($admin)->authorize('update', $record);
+
                 $quantity = (int) $data['quantity'];
                 $quantityChange = $data['direction'] === 'remove' ? -$quantity : $quantity;
 
@@ -76,7 +80,7 @@ class AdjustStockAction
                         type: InventoryLogType::from($data['type']),
                         note: $data['note'] ?? null,
                     );
-                } catch (\App\Exceptions\BusinessException $exception) {
+                } catch (BusinessException $exception) {
                     Notification::make()
                         ->title('Stock adjustment failed')
                         ->body($exception->getMessage())

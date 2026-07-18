@@ -1,14 +1,17 @@
 <?php
 
 use App\Exceptions\BusinessException;
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Responses\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -22,9 +25,18 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command('inventory:sweep-low-stock')->dailyAt('09:00');
+        $schedule->command('offers:expire')->dailyAt('00:15');
+        $schedule->command('queue:prune-failed', ['--hours' => 168])->weekly();
+    })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'user.active' => \App\Http\Middleware\EnsureUserIsActive::class,
+            'user.active' => EnsureUserIsActive::class,
+        ]);
+
+        $middleware->api(append: [
+            ThrottleRequests::class.':api',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -3,11 +3,12 @@
 use App\Enums\UserStatus;
 use App\Models\CustomerAddress;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Laravel\Sanctum\Sanctum;
 
-uses(Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 describe('Auth API', function (): void {
     it('registers a new customer', function (): void {
@@ -143,7 +144,7 @@ describe('Auth API', function (): void {
 
         $token = 'test-reset-token-1234567890123456789012345678901234567890123456789012345678901234';
 
-        Illuminate\Support\Facades\DB::table('password_reset_tokens')->updateOrInsert(
+        DB::table('password_reset_tokens')->updateOrInsert(
             ['email' => $user->phone],
             [
                 'token' => Hash::make($token),
@@ -212,6 +213,43 @@ describe('Address API', function (): void {
 
         $this->getJson('/api/v1/addresses/'.$address->id, authApiHeaders($other))
             ->assertForbidden();
+    });
+
+    it('forbids updating another users address', function (): void {
+        $owner = User::factory()->create(['status' => UserStatus::Active]);
+        $other = User::factory()->create(['status' => UserStatus::Active]);
+
+        $address = CustomerAddress::query()->create([
+            'user_id' => $owner->id,
+            'name' => 'Owner',
+            'phone' => '03001234567',
+            'address' => 'Secret address',
+            'is_default' => true,
+        ]);
+
+        $this->patchJson('/api/v1/addresses/'.$address->id, [
+            'name' => 'Intruder',
+            'phone' => '03001234567',
+            'address' => 'Hacked address',
+        ], authApiHeaders($other))->assertForbidden();
+    });
+
+    it('forbids deleting another users address', function (): void {
+        $owner = User::factory()->create(['status' => UserStatus::Active]);
+        $other = User::factory()->create(['status' => UserStatus::Active]);
+
+        $address = CustomerAddress::query()->create([
+            'user_id' => $owner->id,
+            'name' => 'Owner',
+            'phone' => '03001234567',
+            'address' => 'Secret address',
+            'is_default' => true,
+        ]);
+
+        $this->deleteJson('/api/v1/addresses/'.$address->id, [], authApiHeaders($other))
+            ->assertForbidden();
+
+        expect(CustomerAddress::query()->whereKey($address->id)->exists())->toBeTrue();
     });
 
     it('deletes an address and promotes another default', function (): void {

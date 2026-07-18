@@ -152,12 +152,25 @@ class PaymentGatewayService
     {
         $parsed = $this->easypaisaGateway->parseCallback($payload);
         $payment = $this->findPaymentByReference($parsed['reference'], PaymentMethod::Easypaisa);
+        $isSuccessful = $this->easypaisaGateway->isSuccessfulCallback(
+            $parsed['status'],
+            $parsed['response_code'],
+        );
 
-        if ($parsed['amount'] !== null) {
+        if ($isSuccessful) {
+            if ($parsed['amount'] === null) {
+                throw new BusinessException(
+                    'Easypaisa success callback is missing payment amount.',
+                    Response::HTTP_UNPROCESSABLE_ENTITY,
+                );
+            }
+
+            $this->assertPaymentAmount($payment, $parsed['amount']);
+        } elseif ($parsed['amount'] !== null) {
             $this->assertPaymentAmount($payment, $parsed['amount']);
         }
 
-        if ($this->easypaisaGateway->isSuccessfulCallback($parsed['status'], $parsed['response_code'])) {
+        if ($isSuccessful) {
             if ($payment->payment_status !== PaymentStatus::Paid) {
                 $order = $this->orderService->markOnlinePaymentPaid(
                     payment: $payment,

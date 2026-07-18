@@ -34,7 +34,7 @@ class AppNotificationPolicy extends AdminResourcePolicy
         }
 
         return $this->adminIsActive($user)
-            && $appNotification->admin_id !== null;
+            && $appNotification->admin_id === $user->id;
     }
 
     public function delete(Admin $admin, AppNotification $appNotification): bool

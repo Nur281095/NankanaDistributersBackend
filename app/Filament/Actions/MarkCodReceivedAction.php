@@ -2,11 +2,13 @@
 
 namespace App\Filament\Actions;
 
+use App\Exceptions\BusinessException;
 use App\Models\Order;
 use App\Services\OrderService;
 use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Gate;
 
 class MarkCodReceivedAction
 {
@@ -39,13 +41,15 @@ class MarkCodReceivedAction
                     return;
                 }
 
+                Gate::forUser($admin)->authorize('update', $record);
+
                 try {
                     $orderService->markCodReceived(
                         order: $record,
                         admin: $admin,
                         note: $data['note'] ?? null,
                     );
-                } catch (\App\Exceptions\BusinessException $exception) {
+                } catch (BusinessException $exception) {
                     Notification::make()
                         ->title('COD confirmation failed')
                         ->body($exception->getMessage())

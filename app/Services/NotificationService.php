@@ -10,6 +10,7 @@ use App\Models\Admin;
 use App\Models\AppNotification;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
 class NotificationService
@@ -26,20 +27,9 @@ class NotificationService
         ?string $referenceType = null,
         ?int $referenceId = null,
     ): AppNotification {
-        $notification = AppNotification::query()->create([
-            'user_id' => $user->id,
-            'admin_id' => null,
-            'title' => $title,
-            'message' => $message,
-            'type' => $type,
-            'data' => $data,
-            'reference_type' => $referenceType,
-            'reference_id' => $referenceId,
-            'is_read' => false,
-        ]);
-
-        $this->queuePushForUser(
-            user: $user,
+        $notification = $this->storeNotification(
+            userId: $user->id,
+            adminId: null,
             title: $title,
             message: $message,
             type: $type,
@@ -47,6 +37,8 @@ class NotificationService
             referenceType: $referenceType,
             referenceId: $referenceId,
         );
+
+        $this->dispatchPushForNotification($notification);
 
         return $notification;
     }
@@ -63,17 +55,16 @@ class NotificationService
         ?string $referenceType = null,
         ?int $referenceId = null,
     ): AppNotification {
-        return AppNotification::query()->create([
-            'user_id' => null,
-            'admin_id' => $admin->id,
-            'title' => $title,
-            'message' => $message,
-            'type' => $type,
-            'data' => $data,
-            'reference_type' => $referenceType,
-            'reference_id' => $referenceId,
-            'is_read' => false,
-        ]);
+        return $this->storeNotification(
+            userId: null,
+            adminId: $admin->id,
+            title: $title,
+            message: $message,
+            type: $type,
+            data: $data,
+            referenceType: $referenceType,
+            referenceId: $referenceId,
+        );
     }
 
     /**
@@ -87,8 +78,8 @@ class NotificationService
         ?array $data = null,
         ?string $referenceType = null,
         ?int $referenceId = null,
-    ): void {
-        SendAppNotificationJob::dispatch(
+    ): AppNotification {
+        $notification = $this->storeNotification(
             userId: $user->id,
             adminId: null,
             title: $title,
@@ -98,6 +89,10 @@ class NotificationService
             referenceType: $referenceType,
             referenceId: $referenceId,
         );
+
+        SendAppNotificationJob::dispatch($notification->id);
+
+        return $notification;
     }
 
     /**
@@ -111,8 +106,8 @@ class NotificationService
         ?array $data = null,
         ?string $referenceType = null,
         ?int $referenceId = null,
-    ): void {
-        SendAppNotificationJob::dispatch(
+    ): AppNotification {
+        $notification = $this->storeNotification(
             userId: null,
             adminId: $admin->id,
             title: $title,
@@ -122,6 +117,21 @@ class NotificationService
             referenceType: $referenceType,
             referenceId: $referenceId,
         );
+
+        SendAppNotificationJob::dispatch($notification->id);
+
+        return $notification;
+    }
+
+    public function deliverQueuedNotification(int $notificationId): void
+    {
+        $notification = AppNotification::query()->find($notificationId);
+
+        if ($notification === null || $notification->user_id === null) {
+            return;
+        }
+
+        $this->dispatchPushForNotification($notification);
     }
 
     public function paginateForUser(
@@ -219,24 +229,80 @@ class NotificationService
             ]);
     }
 
+    private function dispatchPushForNotification(AppNotification $notification): void
+    {
+        if ($notification->user_id === null) {
+            return;
+        }
+
+        $claimed = false;
+
+        DB::transaction(function () use ($notification, &$claimed): void {
+            /** @var AppNotification|null $locked */
+            $locked = AppNotification::query()
+                ->lockForUpdate()
+                ->whereKey($notification->id)
+                ->first();
+
+            if ($locked === null) {
+                return;
+            }
+
+            $data = $locked->data ?? [];
+
+            if (($data['push_dispatched'] ?? false) === true) {
+                return;
+            }
+
+            $data['push_dispatched'] = true;
+            $locked->update(['data' => $data]);
+            $claimed = true;
+        });
+
+        if (! $claimed) {
+            return;
+        }
+
+        $notification->refresh();
+
+        SendPushNotificationJob::dispatch(
+            userId: (int) $notification->user_id,
+            title: $notification->title,
+            body: $notification->message,
+            data: $this->buildPushData(
+                $notification->type,
+                $notification->data,
+                $notification->reference_type,
+                $notification->reference_id,
+            ),
+            notificationId: $notification->id,
+        );
+    }
+
     /**
      * @param  array<string, mixed>|null  $data
      */
-    private function queuePushForUser(
-        User $user,
+    private function storeNotification(
+        ?int $userId,
+        ?int $adminId,
         string $title,
         string $message,
         NotificationType $type,
-        ?array $data = null,
-        ?string $referenceType = null,
-        ?int $referenceId = null,
-    ): void {
-        SendPushNotificationJob::dispatch(
-            userId: $user->id,
-            title: $title,
-            body: $message,
-            data: $this->buildPushData($type, $data, $referenceType, $referenceId),
-        );
+        ?array $data,
+        ?string $referenceType,
+        ?int $referenceId,
+    ): AppNotification {
+        return AppNotification::query()->create([
+            'user_id' => $userId,
+            'admin_id' => $adminId,
+            'title' => $title,
+            'message' => $message,
+            'type' => $type,
+            'data' => $data,
+            'reference_type' => $referenceType,
+            'reference_id' => $referenceId,
+            'is_read' => false,
+        ]);
     }
 
     /**
@@ -249,7 +315,7 @@ class NotificationService
         ?string $referenceType,
         ?int $referenceId,
     ): array {
-        return array_merge(
+        $payload = array_merge(
             [
                 'type' => $type->value,
                 'reference_type' => $referenceType ?? '',
@@ -257,5 +323,9 @@ class NotificationService
             ],
             $data ?? [],
         );
+
+        unset($payload['push_dispatched'], $payload['push_sent']);
+
+        return $payload;
     }
 }

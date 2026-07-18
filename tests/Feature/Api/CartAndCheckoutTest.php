@@ -10,13 +10,16 @@ use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Setting;
 use App\Models\User;
+use App\Services\SettingsService;
 use Database\Seeders\DemoCatalogSeeder;
 use Database\Seeders\SettingsSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
-uses(Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->seed([
@@ -201,6 +204,36 @@ describe('Cart API', function (): void {
 
         $response->assertForbidden();
     });
+
+    it('forbids removing another users cart item', function (): void {
+        $owner = cartUser();
+        $intruder = User::factory()->create(['phone' => '03005554422']);
+        $product = nidoProduct();
+
+        $this->postJson('/api/v1/cart/items', [
+            'product_id' => $product->id,
+            'quantity' => 1,
+        ], authApiHeaders($owner));
+
+        $cartItem = CartItem::query()->firstOrFail();
+
+        Auth::forgetGuards();
+
+        $this->deleteJson("/api/v1/cart/items/{$cartItem->id}", [], authApiHeaders($intruder))
+            ->assertForbidden();
+
+        expect(CartItem::query()->whereKey($cartItem->id)->exists())->toBeTrue();
+    });
+
+    it('rejects cart quantities above the allowed maximum', function (): void {
+        $user = cartUser();
+        $product = nidoProduct();
+
+        $this->postJson('/api/v1/cart/items', [
+            'product_id' => $product->id,
+            'quantity' => 1000,
+        ], authApiHeaders($user))->assertUnprocessable();
+    });
 });
 
 describe('Checkout API', function (): void {
@@ -341,9 +374,9 @@ describe('Checkout API', function (): void {
     });
 
     it('rejects online payment methods when disabled in settings', function (): void {
-        \App\Models\Setting::query()->where('key', 'jazzcash_enabled')->update(['value' => '0']);
+        Setting::query()->where('key', 'jazzcash_enabled')->update(['value' => '0']);
 
-        app(\App\Services\SettingsService::class)->clearCache();
+        app(SettingsService::class)->clearCache();
 
         $user = cartUser();
         $product = nidoProduct();

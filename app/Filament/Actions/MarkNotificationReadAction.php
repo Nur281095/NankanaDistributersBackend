@@ -7,6 +7,7 @@ use App\Services\NotificationService;
 use Filament\Actions\Action as HeaderAction;
 use Filament\Notifications\Notification;
 use Filament\Tables\Actions\Action as TableAction;
+use Illuminate\Support\Facades\Gate;
 
 class MarkNotificationReadAction
 {
@@ -31,6 +32,19 @@ class MarkNotificationReadAction
             ->visible(fn (AppNotification $record): bool => ! $record->is_read && $record->admin_id !== null)
             ->requiresConfirmation()
             ->action(function (AppNotification $record, NotificationService $notificationService): void {
+                $admin = auth('admin')->user();
+
+                if ($admin === null) {
+                    Notification::make()
+                        ->title('Authentication required')
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                Gate::forUser($admin)->authorize('update', $record);
+
                 $notificationService->markAsReadForAdmin($record);
 
                 Notification::make()

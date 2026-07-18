@@ -9,9 +9,10 @@ use App\Models\Product;
 use App\Models\User;
 use Database\Seeders\DemoCatalogSeeder;
 use Database\Seeders\SettingsSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 
-uses(Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->seed([
@@ -139,6 +140,18 @@ describe('Orders API', function (): void {
         $response = $this->getJson("/api/v1/orders/{$orderId}", authApiHeaders($intruder));
 
         $response->assertForbidden();
+    });
+
+    it('forbids cancelling another users order', function (): void {
+        $owner = User::factory()->create(['phone' => '03001110077']);
+        $intruder = User::factory()->create(['phone' => '03001110066']);
+        $product = Product::query()->where('sku_code', 'NIDO-400G')->firstOrFail();
+        $orderId = placeCodOrder($owner, $product);
+
+        Auth::forgetGuards();
+
+        $this->postJson("/api/v1/orders/{$orderId}/cancel", [], authApiHeaders($intruder))
+            ->assertForbidden();
     });
 });
 

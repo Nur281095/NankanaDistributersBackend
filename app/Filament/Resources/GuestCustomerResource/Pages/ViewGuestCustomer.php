@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\GuestCustomerResource\Pages;
 
 use App\Filament\Resources\GuestCustomerResource;
-use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
 
 class ViewGuestCustomer extends ViewRecord
@@ -12,8 +11,6 @@ class ViewGuestCustomer extends ViewRecord
 
     protected function getHeaderActions(): array
     {
-        return [
-            Actions\EditAction::make(),
-        ];
+        return [];
     }
 }

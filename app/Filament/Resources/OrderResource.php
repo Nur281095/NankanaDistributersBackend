@@ -9,6 +9,7 @@ use App\Filament\Resources\OrderResource\Pages;
 use App\Filament\Resources\OrderResource\RelationManagers;
 use App\Filament\Support\OrderPresentation;
 use App\Models\Order;
+use App\Services\DashboardService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Infolists;
@@ -48,7 +49,7 @@ class OrderResource extends Resource
                         Forms\Components\Textarea::make('admin_note')
                             ->label('Admin note')
                             ->rows(4)
-                            ->maxLength(1000)
+                            ->maxLength(500)
                             ->columnSpanFull(),
                     ]),
             ]);
@@ -244,7 +245,7 @@ class OrderResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        $count = app(\App\Services\DashboardService::class)->activeOrdersCount();
+        $count = app(DashboardService::class)->activeOrdersCount();
 
         return $count > 0 ? (string) $count : null;
     }

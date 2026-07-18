@@ -43,6 +43,7 @@ class ProductsRelationManager extends RelationManager
                     ->label('SKU')
                     ->required()
                     ->maxLength(100)
+                    ->unique(ignoreRecord: true)
                     ->alphaDash(),
                 Forms\Components\TextInput::make('regular_price')
                     ->numeric()

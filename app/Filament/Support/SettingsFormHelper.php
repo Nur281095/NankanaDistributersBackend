@@ -53,13 +53,13 @@ class SettingsFormHelper
         'jazzcash_enabled' => [
             'label' => 'JazzCash enabled',
             'group' => 'Payments',
-            'helper' => 'Shown in app settings. Gateway integration is Stage 4.',
+            'helper' => 'Show JazzCash as a payment option in the mobile app checkout.',
             'public' => true,
         ],
         'easypaisa_enabled' => [
             'label' => 'Easypaisa enabled',
             'group' => 'Payments',
-            'helper' => 'Shown in app settings. Gateway integration is Stage 4.',
+            'helper' => 'Show Easypaisa as a payment option in the mobile app checkout.',
             'public' => true,
         ],
         'auto_confirm_cod' => [

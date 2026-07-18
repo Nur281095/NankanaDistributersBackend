@@ -41,6 +41,7 @@
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
             "@php artisan key:generate",
             "@php artisan migrate --force",
+            "@php -r \"file_exists('public/storage') || passthru('php artisan storage:link --ansi');\"",
             "npm install --ignore-scripts",
             "npm run build"
         ],
@@ -55,7 +56,8 @@
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi",
-            "@php artisan filament:upgrade"
+            "@php artisan filament:upgrade",
+            "@php -r \"file_exists('public/storage') || (file_exists('artisan') && passthru('php artisan storage:link --ansi'));\""
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"

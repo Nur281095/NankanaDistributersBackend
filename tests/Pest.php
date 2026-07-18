@@ -1,5 +1,10 @@
 <?php
 
+use App\Enums\PaymentMethod;
+use App\Models\Product;
+use App\Models\User;
+use App\Support\Payments\EasypaisaSignature;
+use App\Support\Payments\JazzCashSignature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -44,7 +49,7 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function authApiHeaders(App\Models\User $user): array
+function authApiHeaders(User $user): array
 {
     $token = $user->createToken('test')->plainTextToken;
 
@@ -54,7 +59,7 @@ function authApiHeaders(App\Models\User $user): array
     ];
 }
 
-function placeCodOrder(App\Models\User $user, App\Models\Product $product, int $quantity = 1): int
+function placeCodOrder(User $user, Product $product, int $quantity = 1): int
 {
     test()->postJson('/api/v1/cart/items', [
         'product_id' => $product->id,
@@ -62,7 +67,7 @@ function placeCodOrder(App\Models\User $user, App\Models\Product $product, int $
     ], authApiHeaders($user))->assertCreated();
 
     $response = test()->postJson('/api/v1/checkout/place-order', [
-        'payment_method' => App\Enums\PaymentMethod::Cod->value,
+        'payment_method' => PaymentMethod::Cod->value,
         'name' => $user->name,
         'phone' => $user->phone,
         'address' => 'House 12, Model Town',
@@ -87,7 +92,7 @@ function configurePaymentGateways(): void
     ]);
 }
 
-function placeOnlineOrder(App\Models\User $user, App\Models\Product $product, App\Enums\PaymentMethod $paymentMethod, int $quantity = 1): int
+function placeOnlineOrder(User $user, Product $product, PaymentMethod $paymentMethod, int $quantity = 1): int
 {
     test()->postJson('/api/v1/cart/items', [
         'product_id' => $product->id,
@@ -126,7 +131,24 @@ function jazzCashCallbackPayload(array $overrides = [], string $integritySalt = 
         'pp_Version' => '1.1',
     ], $overrides);
 
-    $fields['pp_SecureHash'] = App\Support\Payments\JazzCashSignature::generate($fields, $integritySalt);
+    $fields['pp_SecureHash'] = JazzCashSignature::generate($fields, $integritySalt);
+
+    return $fields;
+}
+
+function easypaisaCallbackPayload(array $overrides = [], string $hashKey = '0123456789abcdef'): array
+{
+    $fields = array_merge([
+        'storeId' => '12345',
+        'orderRefNum' => 'EPREF123',
+        'status' => 'Success',
+        'responseCode' => '0000',
+        'desc' => 'Success',
+        'amount' => '949.00',
+        'transactionId' => 'EP-TXN-001',
+    ], $overrides);
+
+    $fields['merchantHashedResp'] = EasypaisaSignature::signResponse($fields, $hashKey);
 
     return $fields;
 }

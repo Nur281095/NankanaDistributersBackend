@@ -6,6 +6,8 @@ use App\Exceptions\BusinessException;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Support\Payments\JazzCashSignature;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 class JazzCashGateway
@@ -51,13 +53,25 @@ class JazzCashGateway
             (string) config('payments.jazzcash.integrity_salt'),
         );
 
+        $token = Str::random(64);
+
+        Cache::put(
+            'jazzcash_payment_form:'.$token,
+            $fields,
+            now()->addMinutes(15),
+        );
+
+        $publicFields = $fields;
+        unset($publicFields['pp_Password']);
+
         return [
             'gateway' => 'jazzcash',
             'action_url' => (string) config('payments.jazzcash.form_url'),
-            'method' => 'POST',
+            'redirect_url' => url('/payments/jazzcash/checkout/'.$token),
+            'method' => 'GET',
             'reference' => $reference,
             'payment_id' => $payment->id,
-            'fields' => $fields,
+            'fields' => $publicFields,
         ];
     }
 

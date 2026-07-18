@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CatalogStatus;
 use App\Enums\DiscountType;
+use App\Models\Concerns\CleansPublicMedia;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -21,7 +22,16 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 ])]
 class Offer extends Model
 {
+    use CleansPublicMedia;
     use SoftDeletes;
+
+    /**
+     * @return list<string>
+     */
+    protected function publicMediaAttributes(): array
+    {
+        return ['image'];
+    }
 
     /**
      * @return HasMany<OfferTarget, $this>

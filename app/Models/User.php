@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ChangedByType;
 use App\Enums\UserStatus;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -20,6 +21,16 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
+
+    protected static function booted(): void
+    {
+        static::forceDeleting(function (User $user): void {
+            OrderStatusLog::query()
+                ->where('changed_by_type', ChangedByType::Customer)
+                ->where('changed_by', $user->id)
+                ->update(['changed_by' => null]);
+        });
+    }
 
     /**
      * @return HasMany<CustomerAddress, $this>

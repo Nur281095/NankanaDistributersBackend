@@ -82,6 +82,8 @@ class AddressService
      */
     public function update(User $user, CustomerAddress $address, array $data): CustomerAddress
     {
+        $this->assertOwnedByUser($user, $address);
+
         return DB::transaction(function () use ($user, $address, $data): CustomerAddress {
             if (($data['is_default'] ?? false) === true) {
                 $this->clearDefaultFlag($user, $address->id);
@@ -105,6 +107,8 @@ class AddressService
 
     public function delete(User $user, CustomerAddress $address): void
     {
+        $this->assertOwnedByUser($user, $address);
+
         DB::transaction(function () use ($user, $address): void {
             $wasDefault = $address->is_default;
             $address->delete();
@@ -117,6 +121,16 @@ class AddressService
                 }
             }
         });
+    }
+
+    private function assertOwnedByUser(User $user, CustomerAddress $address): void
+    {
+        if ((int) $address->user_id !== (int) $user->id) {
+            throw new BusinessException(
+                'Address not found.',
+                Response::HTTP_NOT_FOUND,
+            );
+        }
     }
 
     private function clearDefaultFlag(User $user, ?int $exceptId = null): void

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\AdminStatus;
+use App\Enums\CatalogStatus;
 use App\Enums\NotificationType;
 use App\Models\Admin;
 use App\Models\Product;
@@ -23,19 +24,61 @@ class LowStockAlertService
 
     public function checkAfterStockChange(Product $product, int $oldQuantity, int $newQuantity): void
     {
-        if ($newQuantity > $product->low_stock_threshold) {
+        $this->checkIfEnteredLowStock(
+            product: $product,
+            previousQuantity: $oldQuantity,
+            previousThreshold: $product->low_stock_threshold,
+            currentQuantity: $newQuantity,
+        );
+    }
+
+    public function checkIfEnteredLowStock(
+        Product $product,
+        int $previousQuantity,
+        int $previousThreshold,
+        ?int $currentQuantity = null,
+    ): void {
+        $quantity = $currentQuantity ?? $product->stock_quantity;
+        $threshold = $product->low_stock_threshold;
+
+        $wasLow = $previousQuantity <= $previousThreshold;
+        $isLow = $quantity <= $threshold;
+
+        if (! $isLow || $wasLow) {
             return;
         }
 
-        if ($oldQuantity <= $product->low_stock_threshold) {
-            return;
-        }
+        $this->alertIfNeeded($product, $quantity);
+    }
 
+    public function sweep(): int
+    {
+        $alerted = 0;
+
+        Product::query()
+            ->where('status', CatalogStatus::Active)
+            ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
+            ->orderBy('id')
+            ->each(function (Product $product) use (&$alerted): void {
+                if (! $this->shouldSendAlert($product->id)) {
+                    return;
+                }
+
+                $this->notifyAdmins($product, $product->stock_quantity);
+                $this->markAlertSent($product->id);
+                $alerted++;
+            });
+
+        return $alerted;
+    }
+
+    private function alertIfNeeded(Product $product, int $stockQuantity): void
+    {
         if (! $this->shouldSendAlert($product->id)) {
             return;
         }
 
-        $this->notifyAdmins($product, $newQuantity);
+        $this->notifyAdmins($product, $stockQuantity);
         $this->markAlertSent($product->id);
     }
 

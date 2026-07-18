@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             SettingsSeeder::class,
             EmailTemplateSeeder::class,
             DemoCatalogSeeder::class,
+            HomeSectionsSeeder::class,
         ]);
     }
 }

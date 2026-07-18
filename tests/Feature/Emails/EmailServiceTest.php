@@ -19,11 +19,12 @@ use App\Support\EmailPlaceholderBuilder;
 use Database\Seeders\AdminSeeder;
 use Database\Seeders\EmailTemplateSeeder;
 use Database\Seeders\SettingsSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 
-uses(Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->seed([
@@ -137,6 +138,22 @@ describe('EmailService', function (): void {
             ->toThrow(RuntimeException::class, 'SMTP unavailable');
 
         expect($emailLog->fresh()->status)->toBe(EmailLogStatus::Queued);
+    });
+
+    it('does not send again when the email log is already sent', function (): void {
+        Mail::fake();
+
+        $emailLog = EmailLog::query()->create([
+            'recipient' => 'customer@example.com',
+            'subject' => 'Test subject',
+            'body' => 'Test body',
+            'status' => EmailLogStatus::Sent,
+            'sent_at' => now(),
+        ]);
+
+        app(EmailService::class)->send($emailLog);
+
+        Mail::assertNothingSent();
     });
 
     it('records a failed log when the template is inactive', function (): void {

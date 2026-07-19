@@ -6,6 +6,7 @@ use App\Enums\HomeLinkType;
 use App\Enums\HomeSectionType;
 use App\Enums\ProductCollectionSource;
 use App\Filament\Forms\Components\HomeLinkFields;
+use App\Filament\Forms\Components\PublicImageUpload;
 use App\Filament\Resources\HomeSectionResource\Pages;
 use App\Filament\Resources\HomeSectionResource\RelationManagers;
 use App\Models\HomeSection;
@@ -113,12 +114,8 @@ class HomeSectionResource extends Resource
                     ->relationship('banner')
                     ->visible(fn (Get $get): bool => $get('type') === HomeSectionType::Banner->value)
                     ->schema([
-                        Forms\Components\FileUpload::make('image')
-                            ->image()
+                        PublicImageUpload::make('image')
                             ->directory('marketing/home/banners')
-                            ->disk('public')
-                            ->visibility('public')
-                            ->maxSize(4096)
                             ->required()
                             ->columnSpanFull(),
                         Forms\Components\TextInput::make('title')
@@ -176,6 +173,7 @@ class HomeSectionResource extends Resource
                     ->schema([
                         Infolists\Components\ImageEntry::make('banner.image')
                             ->disk('public')
+                            ->visibility('public')
                             ->columnSpanFull(),
                         Infolists\Components\TextEntry::make('banner.title')
                             ->placeholder('—'),

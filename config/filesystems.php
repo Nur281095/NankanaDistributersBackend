@@ -33,7 +33,10 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
+            // Must NOT use /storage — that path is reserved for the public disk / symlink.
+            // If local steals /storage, Filament & API image URLs get 403 (unsigned private serve).
             'serve' => true,
+            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/private-files',
             'throw' => false,
             'report' => false,
         ],
@@ -41,8 +44,12 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+            // Relative URL keeps admin (admin.*) and API on the same origin as FilePond previews.
+            // Absolute APP_URL + subdomain admin causes "Waiting for size" CORS hangs in Filament.
+            'url' => env('FILESYSTEM_PUBLIC_URL', '/storage'),
             'visibility' => 'public',
+            // Serve via Laravel when the public/storage symlink is missing (common on cPanel/GoDaddy).
+            'serve' => true,
             'throw' => false,
             'report' => false,
         ],

@@ -3,11 +3,14 @@
 namespace App\Filament\Resources;
 
 use App\Enums\CatalogStatus;
+use App\Filament\Forms\Components\PublicImageUpload;
 use App\Filament\Resources\CompanyResource\Pages;
 use App\Filament\Resources\CompanyResource\RelationManagers;
 use App\Models\Company;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Infolists;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -50,12 +53,8 @@ class CompanyResource extends Resource
                             ->maxLength(255)
                             ->unique(ignoreRecord: true)
                             ->alphaDash(),
-                        Forms\Components\FileUpload::make('logo')
-                            ->image()
+                        PublicImageUpload::make('logo')
                             ->directory('catalog/companies')
-                            ->disk('public')
-                            ->visibility('public')
-                            ->maxSize(2048)
                             ->columnSpanFull(),
                         Forms\Components\Textarea::make('description')
                             ->rows(4)
@@ -76,6 +75,31 @@ class CompanyResource extends Resource
             ]);
     }
 
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                Infolists\Components\Section::make('Company details')
+                    ->columns(2)
+                    ->schema([
+                        Infolists\Components\TextEntry::make('name'),
+                        Infolists\Components\TextEntry::make('slug'),
+                        Infolists\Components\ImageEntry::make('logo')
+                            ->disk('public')
+                            ->visibility('public')
+                            ->columnSpanFull()
+                            ->visible(fn (?string $state): bool => filled($state)),
+                        Infolists\Components\TextEntry::make('description')
+                            ->placeholder('—')
+                            ->columnSpanFull(),
+                        Infolists\Components\TextEntry::make('status')
+                            ->badge()
+                            ->formatStateUsing(fn (CatalogStatus $state): string => Str::headline($state->value)),
+                        Infolists\Components\TextEntry::make('sort_order'),
+                    ]),
+            ]);
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -83,6 +107,8 @@ class CompanyResource extends Resource
             ->columns([
                 Tables\Columns\ImageColumn::make('logo')
                     ->disk('public')
+                    ->visibility('public')
+                    ->checkFileExistence(false)
                     ->circular(),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\CatalogStatus;
+use App\Filament\Forms\Components\PublicImageUpload;
 use App\Filament\Resources\BrandResource\Pages;
 use App\Filament\Resources\BrandResource\RelationManagers;
 use App\Models\Brand;
@@ -10,6 +11,8 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
+use Filament\Infolists;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -57,12 +60,8 @@ class BrandResource extends Resource
                             ->maxLength(255)
                             ->unique(ignoreRecord: true)
                             ->alphaDash(),
-                        Forms\Components\FileUpload::make('logo')
-                            ->image()
+                        PublicImageUpload::make('logo')
                             ->directory('catalog/brands')
-                            ->disk('public')
-                            ->visibility('public')
-                            ->maxSize(2048)
                             ->columnSpanFull(),
                         Forms\Components\Textarea::make('description')
                             ->rows(4)
@@ -83,6 +82,33 @@ class BrandResource extends Resource
             ]);
     }
 
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                Infolists\Components\Section::make('Brand details')
+                    ->columns(2)
+                    ->schema([
+                        Infolists\Components\TextEntry::make('company.name')
+                            ->label('Company'),
+                        Infolists\Components\TextEntry::make('name'),
+                        Infolists\Components\TextEntry::make('slug'),
+                        Infolists\Components\ImageEntry::make('logo')
+                            ->disk('public')
+                            ->visibility('public')
+                            ->columnSpanFull()
+                            ->visible(fn (?string $state): bool => filled($state)),
+                        Infolists\Components\TextEntry::make('description')
+                            ->placeholder('—')
+                            ->columnSpanFull(),
+                        Infolists\Components\TextEntry::make('status')
+                            ->badge()
+                            ->formatStateUsing(fn (CatalogStatus $state): string => Str::headline($state->value)),
+                        Infolists\Components\TextEntry::make('sort_order'),
+                    ]),
+            ]);
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -90,6 +116,8 @@ class BrandResource extends Resource
             ->columns([
                 Tables\Columns\ImageColumn::make('logo')
                     ->disk('public')
+                    ->visibility('public')
+                    ->checkFileExistence(false)
                     ->circular(),
                 Tables\Columns\TextColumn::make('company.name')
                     ->searchable()

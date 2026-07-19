@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\CompanyResource\RelationManagers;
 
 use App\Enums\CatalogStatus;
+use App\Filament\Forms\Components\PublicImageUpload;
 use App\Filament\Support\CatalogFormHelper;
 use App\Models\Brand;
 use Filament\Forms;
@@ -39,12 +40,8 @@ class BrandsRelationManager extends RelationManager
                     ->required()
                     ->maxLength(255)
                     ->alphaDash(),
-                Forms\Components\FileUpload::make('logo')
-                    ->image()
-                    ->directory('catalog/brands')
-                    ->disk('public')
-                    ->visibility('public')
-                    ->maxSize(2048),
+                PublicImageUpload::make('logo')
+                    ->directory('catalog/brands'),
                 Forms\Components\Textarea::make('description')
                     ->rows(3)
                     ->columnSpanFull(),
@@ -71,6 +68,8 @@ class BrandsRelationManager extends RelationManager
             ->columns([
                 Tables\Columns\ImageColumn::make('logo')
                     ->disk('public')
+                    ->visibility('public')
+                    ->checkFileExistence(false)
                     ->circular(),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),

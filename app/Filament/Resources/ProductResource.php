@@ -3,13 +3,17 @@
 namespace App\Filament\Resources;
 
 use App\Enums\CatalogStatus;
+use App\Filament\Forms\Components\PublicImageUpload;
 use App\Filament\Resources\ProductResource\Pages;
 use App\Filament\Resources\ProductResource\RelationManagers;
 use App\Models\Product;
+use App\Services\DashboardService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
+use Filament\Infolists;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -88,13 +92,9 @@ class ProductResource extends Resource
                         Forms\Components\Textarea::make('description')
                             ->rows(4)
                             ->columnSpanFull(),
-                        Forms\Components\FileUpload::make('image')
+                        PublicImageUpload::make('image')
                             ->label('Primary image')
-                            ->image()
                             ->directory('catalog/products')
-                            ->disk('public')
-                            ->visibility('public')
-                            ->maxSize(2048)
                             ->columnSpanFull(),
                     ]),
                 Forms\Components\Section::make('Pricing')
@@ -148,13 +148,45 @@ class ProductResource extends Resource
             ]);
     }
 
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                Infolists\Components\Section::make('Product')
+                    ->columns(2)
+                    ->schema([
+                        Infolists\Components\TextEntry::make('name'),
+                        Infolists\Components\TextEntry::make('sku_code')->label('SKU'),
+                        Infolists\Components\TextEntry::make('company.name')->label('Company'),
+                        Infolists\Components\TextEntry::make('brand.name')->label('Brand'),
+                        Infolists\Components\ImageEntry::make('image')
+                            ->label('Primary image')
+                            ->disk('public')
+                            ->visibility('public')
+                            ->columnSpanFull()
+                            ->visible(fn (?string $state): bool => filled($state)),
+                        Infolists\Components\TextEntry::make('description')
+                            ->placeholder('—')
+                            ->columnSpanFull(),
+                        Infolists\Components\TextEntry::make('regular_price')->money('PKR'),
+                        Infolists\Components\TextEntry::make('sale_price')->money('PKR')->placeholder('—'),
+                        Infolists\Components\TextEntry::make('stock_quantity')->label('Stock'),
+                        Infolists\Components\TextEntry::make('status')
+                            ->badge()
+                            ->formatStateUsing(fn (CatalogStatus $state): string => Str::headline($state->value)),
+                    ]),
+            ]);
+    }
+
     public static function table(Table $table): Table
     {
         return $table
             ->defaultSort('name')
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
-                    ->disk('public'),
+                    ->disk('public')
+                    ->visibility('public')
+                    ->checkFileExistence(false),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
@@ -262,7 +294,7 @@ class ProductResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        $count = app(\App\Services\DashboardService::class)->lowStockCount();
+        $count = app(DashboardService::class)->lowStockCount();
 
         return $count > 0 ? (string) $count : null;
     }

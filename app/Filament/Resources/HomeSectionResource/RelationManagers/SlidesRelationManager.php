@@ -4,6 +4,7 @@ namespace App\Filament\Resources\HomeSectionResource\RelationManagers;
 
 use App\Enums\HomeSectionType;
 use App\Filament\Forms\Components\HomeLinkFields;
+use App\Filament\Forms\Components\PublicImageUpload;
 use App\Models\HomeSection;
 use App\Models\HomeSliderSlide;
 use Filament\Forms;
@@ -30,12 +31,8 @@ class SlidesRelationManager extends RelationManager
     {
         return $form
             ->schema([
-                Forms\Components\FileUpload::make('image')
-                    ->image()
+                PublicImageUpload::make('image')
                     ->directory('marketing/home/slides')
-                    ->disk('public')
-                    ->visibility('public')
-                    ->maxSize(4096)
                     ->required()
                     ->columnSpanFull(),
                 Forms\Components\TextInput::make('title')
@@ -62,7 +59,9 @@ class SlidesRelationManager extends RelationManager
             ->reorderable('sort_order')
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
-                    ->disk('public'),
+                    ->disk('public')
+                    ->visibility('public')
+                    ->checkFileExistence(false),
                 Tables\Columns\TextColumn::make('title')
                     ->searchable()
                     ->placeholder('Untitled'),

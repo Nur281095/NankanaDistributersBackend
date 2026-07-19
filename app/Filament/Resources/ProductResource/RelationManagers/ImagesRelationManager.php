@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ProductResource\RelationManagers;
 
+use App\Filament\Forms\Components\PublicImageUpload;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -16,13 +17,9 @@ class ImagesRelationManager extends RelationManager
     {
         return $form
             ->schema([
-                Forms\Components\FileUpload::make('image_url')
+                PublicImageUpload::make('image_url')
                     ->label('Image')
-                    ->image()
                     ->directory('catalog/products/gallery')
-                    ->disk('public')
-                    ->visibility('public')
-                    ->maxSize(2048)
                     ->required()
                     ->columnSpanFull(),
                 Forms\Components\TextInput::make('sort_order')
@@ -41,7 +38,9 @@ class ImagesRelationManager extends RelationManager
             ->reorderable('sort_order')
             ->columns([
                 Tables\Columns\ImageColumn::make('image_url')
-                    ->disk('public'),
+                    ->disk('public')
+                    ->visibility('public')
+                    ->checkFileExistence(false),
                 Tables\Columns\TextColumn::make('sort_order')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('updated_at')

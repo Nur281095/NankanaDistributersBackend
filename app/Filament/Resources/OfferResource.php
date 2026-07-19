@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Enums\CatalogStatus;
 use App\Enums\DiscountType;
+use App\Filament\Forms\Components\PublicImageUpload;
 use App\Filament\Resources\OfferResource\Pages;
 use App\Filament\Resources\OfferResource\RelationManagers;
 use App\Models\Offer;
@@ -53,12 +54,8 @@ class OfferResource extends Resource
                         Forms\Components\Textarea::make('description')
                             ->rows(4)
                             ->columnSpanFull(),
-                        Forms\Components\FileUpload::make('image')
-                            ->image()
+                        PublicImageUpload::make('image')
                             ->directory('marketing/offers')
-                            ->disk('public')
-                            ->visibility('public')
-                            ->maxSize(2048)
                             ->columnSpanFull(),
                     ]),
                 Forms\Components\Section::make('Discount')
@@ -112,6 +109,7 @@ class OfferResource extends Resource
                             ->formatStateUsing(fn (CatalogStatus $state): string => Str::headline($state->value)),
                         Infolists\Components\ImageEntry::make('image')
                             ->disk('public')
+                            ->visibility('public')
                             ->columnSpanFull()
                             ->visible(fn (?string $state): bool => filled($state)),
                         Infolists\Components\TextEntry::make('description')
@@ -153,6 +151,8 @@ class OfferResource extends Resource
             ->columns([
                 Tables\Columns\ImageColumn::make('image')
                     ->disk('public')
+                    ->visibility('public')
+                    ->checkFileExistence(false)
                     ->circular(),
                 Tables\Columns\TextColumn::make('title')
                     ->searchable()

@@ -9,8 +9,6 @@ use App\Filament\Resources\BrandResource\RelationManagers;
 use App\Models\Brand;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Forms\Get;
-use Filament\Forms\Set;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
@@ -46,20 +44,13 @@ class BrandResource extends Resource
                             ->required(),
                         Forms\Components\TextInput::make('name')
                             ->required()
-                            ->maxLength(255)
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(function (Set $set, ?string $state, Get $get): void {
-                                if (filled($get('slug'))) {
-                                    return;
-                                }
-
-                                $set('slug', Str::slug((string) $state));
-                            }),
-                        Forms\Components\TextInput::make('slug')
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('sort_order')
+                            ->numeric()
+                            ->minValue(0)
+                            ->default(0)
                             ->required()
-                            ->maxLength(255)
-                            ->unique(ignoreRecord: true)
-                            ->alphaDash(),
+                            ->helperText('Lower numbers appear first in the list.'),
                         PublicImageUpload::make('logo')
                             ->directory('catalog/brands')
                             ->columnSpanFull(),
@@ -73,11 +64,6 @@ class BrandResource extends Resource
                             )->all())
                             ->required()
                             ->default(CatalogStatus::Active),
-                        Forms\Components\TextInput::make('sort_order')
-                            ->numeric()
-                            ->minValue(0)
-                            ->default(0)
-                            ->required(),
                     ]),
             ]);
     }
@@ -92,7 +78,7 @@ class BrandResource extends Resource
                         Infolists\Components\TextEntry::make('company.name')
                             ->label('Company'),
                         Infolists\Components\TextEntry::make('name'),
-                        Infolists\Components\TextEntry::make('slug'),
+                        Infolists\Components\TextEntry::make('sort_order'),
                         Infolists\Components\ImageEntry::make('logo')
                             ->disk('public')
                             ->visibility('public')
@@ -104,7 +90,6 @@ class BrandResource extends Resource
                         Infolists\Components\TextEntry::make('status')
                             ->badge()
                             ->formatStateUsing(fn (CatalogStatus $state): string => Str::headline($state->value)),
-                        Infolists\Components\TextEntry::make('sort_order'),
                     ]),
             ]);
     }
@@ -112,8 +97,12 @@ class BrandResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->defaultSort('sort_order')
+            ->defaultSort('sort_order', 'asc')
             ->columns([
+                Tables\Columns\TextColumn::make('sort_order')
+                    ->label('#')
+                    ->numeric()
+                    ->sortable(),
                 Tables\Columns\ImageColumn::make('logo')
                     ->disk('public')
                     ->visibility('public')
@@ -136,9 +125,6 @@ class BrandResource extends Resource
                         CatalogStatus::Inactive => 'gray',
                     })
                     ->formatStateUsing(fn (CatalogStatus $state): string => Str::headline($state->value)),
-                Tables\Columns\TextColumn::make('sort_order')
-                    ->numeric()
-                    ->sortable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('company_id')
@@ -191,6 +177,6 @@ class BrandResource extends Resource
 
     public static function getGloballySearchableAttributes(): array
     {
-        return ['name', 'slug'];
+        return ['name'];
     }
 }

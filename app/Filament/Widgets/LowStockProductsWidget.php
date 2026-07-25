@@ -31,6 +31,7 @@ class LowStockProductsWidget extends BaseWidget
                     ->orderBy('stock_quantity')
                     ->limit(10)
             )
+            ->recordClasses('bg-danger-50 dark:bg-danger-950/40')
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Product')

@@ -7,6 +7,8 @@ use App\Filament\Support\CatalogFormHelper;
 trait NormalizesCatalogSlug
 {
     /**
+     * Keep slug out of admin forms while still satisfying DB uniqueness.
+     *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
@@ -16,7 +18,14 @@ trait NormalizesCatalogSlug
             ? $this->record->getKey()
             : null;
 
-        $source = $data['slug'] ?? $data['name'] ?? '';
+        // Updates: preserve the existing slug (forms no longer collect it).
+        if ($ignoreId !== null && isset($this->record) && filled($this->record->getAttribute('slug'))) {
+            $data['slug'] = (string) $this->record->getAttribute('slug');
+
+            return $data;
+        }
+
+        $source = $data['name'] ?? '';
 
         if (is_string($source) && $source !== '') {
             $data['slug'] = CatalogFormHelper::uniqueSlug($source, $table, $ignoreId);

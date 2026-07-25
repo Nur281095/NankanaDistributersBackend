@@ -7,8 +7,6 @@ use App\Filament\Resources\EmailTemplateResource\Pages;
 use App\Models\EmailTemplate;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Forms\Get;
-use Filament\Forms\Set;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
@@ -41,21 +39,7 @@ class EmailTemplateResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->required()
-                            ->maxLength(100)
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(function (Set $set, ?string $state, Get $get): void {
-                                if (filled($get('slug'))) {
-                                    return;
-                                }
-
-                                $set('slug', Str::slug((string) $state));
-                            }),
-                        Forms\Components\TextInput::make('slug')
-                            ->required()
-                            ->maxLength(100)
-                            ->unique(ignoreRecord: true)
-                            ->alphaDash()
-                            ->helperText('Stable identifier used when sending emails from code.'),
+                            ->maxLength(100),
                         Forms\Components\Select::make('status')
                             ->enum(CatalogStatus::class)
                             ->options(collect(CatalogStatus::cases())->mapWithKeys(
@@ -88,7 +72,6 @@ class EmailTemplateResource extends Resource
                     ->columns(2)
                     ->schema([
                         Infolists\Components\TextEntry::make('name'),
-                        Infolists\Components\TextEntry::make('slug'),
                         Infolists\Components\TextEntry::make('status')
                             ->badge()
                             ->color(fn (CatalogStatus $state): string => match ($state) {
@@ -115,9 +98,6 @@ class EmailTemplateResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('slug')
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('subject')
                     ->limit(40)
                     ->searchable(),
@@ -167,6 +147,6 @@ class EmailTemplateResource extends Resource
 
     public static function getGloballySearchableAttributes(): array
     {
-        return ['name', 'slug', 'subject'];
+        return ['name', 'subject'];
     }
 }

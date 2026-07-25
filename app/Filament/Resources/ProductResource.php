@@ -67,28 +67,21 @@ class ProductResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->required()
-                            ->maxLength(255)
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(function (Set $set, ?string $state, Get $get): void {
-                                if (filled($get('slug'))) {
-                                    return;
-                                }
-
-                                $set('slug', Str::slug((string) $state));
-                            }),
-                        Forms\Components\TextInput::make('slug')
-                            ->required()
-                            ->maxLength(255)
-                            ->unique(ignoreRecord: true)
-                            ->alphaDash(),
+                            ->maxLength(255),
                         Forms\Components\TextInput::make('sku_code')
                             ->label('SKU')
                             ->required()
                             ->maxLength(100)
-                            ->unique(ignoreRecord: true)
-                            ->alphaDash(),
+                            ->alphaDash()
+                            ->helperText('SKU can be reused across products.'),
                         Forms\Components\TextInput::make('unit')
                             ->maxLength(50),
+                        Forms\Components\TextInput::make('sort_order')
+                            ->numeric()
+                            ->minValue(0)
+                            ->default(0)
+                            ->required()
+                            ->helperText('Lower numbers appear first in the list.'),
                         Forms\Components\Textarea::make('description')
                             ->rows(4)
                             ->columnSpanFull(),
@@ -157,6 +150,7 @@ class ProductResource extends Resource
                     ->schema([
                         Infolists\Components\TextEntry::make('name'),
                         Infolists\Components\TextEntry::make('sku_code')->label('SKU'),
+                        Infolists\Components\TextEntry::make('sort_order'),
                         Infolists\Components\TextEntry::make('company.name')->label('Company'),
                         Infolists\Components\TextEntry::make('brand.name')->label('Brand'),
                         Infolists\Components\ImageEntry::make('image')
@@ -181,8 +175,15 @@ class ProductResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->defaultSort('name')
+            ->defaultSort('sort_order', 'asc')
+            ->recordClasses(fn (Product $record): ?string => $record->isLowStock()
+                ? 'bg-danger-50 dark:bg-danger-950/40'
+                : null)
             ->columns([
+                Tables\Columns\TextColumn::make('sort_order')
+                    ->label('#')
+                    ->numeric()
+                    ->sortable(),
                 Tables\Columns\ImageColumn::make('image')
                     ->disk('public')
                     ->visibility('public')
@@ -213,7 +214,7 @@ class ProductResource extends Resource
                 Tables\Columns\TextColumn::make('stock_quantity')
                     ->label('Stock')
                     ->sortable()
-                    ->color(fn (Product $record): string => $record->stock_quantity <= $record->low_stock_threshold
+                    ->color(fn (Product $record): string => $record->isLowStock()
                         ? 'danger'
                         : 'success'),
                 Tables\Columns\IconColumn::make('is_featured')
@@ -289,7 +290,7 @@ class ProductResource extends Resource
 
     public static function getGloballySearchableAttributes(): array
     {
-        return ['name', 'slug', 'sku_code'];
+        return ['name', 'sku_code'];
     }
 
     public static function getNavigationBadge(): ?string

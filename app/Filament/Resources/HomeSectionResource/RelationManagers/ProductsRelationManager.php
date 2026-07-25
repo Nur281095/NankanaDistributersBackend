@@ -32,7 +32,13 @@ class ProductsRelationManager extends RelationManager
             ->recordTitleAttribute('name')
             ->defaultSort('home_section_products.sort_order')
             ->reorderable('sort_order')
+            ->recordClasses(fn (Product $record): ?string => $record->isLowStock()
+                ? 'bg-danger-50 dark:bg-danger-950/40'
+                : null)
             ->columns([
+                Tables\Columns\TextColumn::make('pivot.sort_order')
+                    ->label('#')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
@@ -44,13 +50,15 @@ class ProductsRelationManager extends RelationManager
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('regular_price')
                     ->money('PKR'),
+                Tables\Columns\TextColumn::make('stock_quantity')
+                    ->label('Stock')
+                    ->color(fn (Product $record): string => $record->isLowStock()
+                        ? 'danger'
+                        : 'success'),
                 Tables\Columns\IconColumn::make('status')
                     ->label('Active')
                     ->boolean()
                     ->getStateUsing(fn (Product $record): bool => $record->status === CatalogStatus::Active),
-                Tables\Columns\TextColumn::make('pivot.sort_order')
-                    ->label('#')
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->headerActions([
                 Tables\Actions\AttachAction::make()

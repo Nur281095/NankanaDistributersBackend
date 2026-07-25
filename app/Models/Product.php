@@ -33,6 +33,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'status',
     'is_featured',
     'is_suggested',
+    'sort_order',
 ])]
 class Product extends Model
 {
@@ -150,10 +151,16 @@ class Product extends Model
             'purchase_price' => 'decimal:2',
             'stock_quantity' => 'integer',
             'low_stock_threshold' => 'integer',
+            'sort_order' => 'integer',
             'is_taxable' => 'boolean',
             'is_featured' => 'boolean',
             'is_suggested' => 'boolean',
             'status' => CatalogStatus::class,
         ];
+    }
+
+    public function isLowStock(): bool
+    {
+        return $this->stock_quantity <= $this->low_stock_threshold;
     }
 }

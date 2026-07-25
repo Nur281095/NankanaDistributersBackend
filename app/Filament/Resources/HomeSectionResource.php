@@ -192,7 +192,7 @@ class HomeSectionResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->defaultSort('sort_order')
+            ->defaultSort('sort_order', 'asc')
             ->reorderable('sort_order')
             ->reorderRecordsTriggerAction(
                 fn (Tables\Actions\Action $action, bool $isReordering): Tables\Actions\Action => $action

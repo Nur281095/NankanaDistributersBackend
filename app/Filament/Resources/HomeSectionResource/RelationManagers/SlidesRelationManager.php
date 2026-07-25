@@ -55,9 +55,13 @@ class SlidesRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('title')
-            ->defaultSort('sort_order')
+            ->defaultSort('sort_order', 'asc')
             ->reorderable('sort_order')
             ->columns([
+                Tables\Columns\TextColumn::make('sort_order')
+                    ->label('#')
+                    ->numeric()
+                    ->sortable(),
                 Tables\Columns\ImageColumn::make('image')
                     ->disk('public')
                     ->visibility('public')
@@ -70,8 +74,6 @@ class SlidesRelationManager extends RelationManager
                     ->formatStateUsing(fn ($state): string => str($state?->value ?? (string) $state)->headline()),
                 Tables\Columns\IconColumn::make('is_active')
                     ->boolean(),
-                Tables\Columns\TextColumn::make('sort_order')
-                    ->sortable(),
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make()

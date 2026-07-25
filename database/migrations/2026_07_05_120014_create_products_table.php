@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreignId('brand_id')->constrained()->restrictOnDelete();
             $table->string('name');
             $table->string('slug')->unique();
-            $table->string('sku_code', 100)->unique();
+            $table->string('sku_code', 100)->index();
             $table->text('description')->nullable();
             $table->string('image', 500)->nullable();
             $table->decimal('regular_price', 10, 2);
@@ -30,6 +30,7 @@ return new class extends Migration
             $table->string('status', 20)->default('active');
             $table->boolean('is_featured')->default(false);
             $table->boolean('is_suggested')->default(false);
+            $table->unsignedInteger('sort_order')->default(0);
             $table->timestamps();
             $table->softDeletes();
 
@@ -38,6 +39,7 @@ return new class extends Migration
             $table->index(['status', 'is_featured']);
             $table->index(['status', 'is_suggested']);
             $table->index('stock_quantity');
+            $table->index('sort_order');
         });
     }
 

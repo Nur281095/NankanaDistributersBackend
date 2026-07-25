@@ -8,8 +8,6 @@ use App\Filament\Support\CatalogFormHelper;
 use App\Models\Brand;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Forms\Get;
-use Filament\Forms\Set;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -27,19 +25,13 @@ class BrandsRelationManager extends RelationManager
             ->schema([
                 Forms\Components\TextInput::make('name')
                     ->required()
-                    ->maxLength(255)
-                    ->live(onBlur: true)
-                    ->afterStateUpdated(function (Set $set, ?string $state, Get $get): void {
-                        if (filled($get('slug'))) {
-                            return;
-                        }
-
-                        $set('slug', Str::slug((string) $state));
-                    }),
-                Forms\Components\TextInput::make('slug')
+                    ->maxLength(255),
+                Forms\Components\TextInput::make('sort_order')
+                    ->numeric()
+                    ->minValue(0)
+                    ->default(0)
                     ->required()
-                    ->maxLength(255)
-                    ->alphaDash(),
+                    ->helperText('Lower numbers appear first in the list.'),
                 PublicImageUpload::make('logo')
                     ->directory('catalog/brands'),
                 Forms\Components\Textarea::make('description')
@@ -52,11 +44,6 @@ class BrandsRelationManager extends RelationManager
                     )->all())
                     ->required()
                     ->default(CatalogStatus::Active),
-                Forms\Components\TextInput::make('sort_order')
-                    ->numeric()
-                    ->minValue(0)
-                    ->default(0)
-                    ->required(),
             ]);
     }
 
@@ -64,23 +51,27 @@ class BrandsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('name')
-            ->defaultSort('sort_order')
+            ->defaultSort('sort_order', 'asc')
             ->columns([
+                Tables\Columns\TextColumn::make('sort_order')
+                    ->label('#')
+                    ->numeric()
+                    ->sortable(),
                 Tables\Columns\ImageColumn::make('logo')
                     ->disk('public')
                     ->visibility('public')
                     ->checkFileExistence(false)
                     ->circular(),
                 Tables\Columns\TextColumn::make('name')
-                    ->searchable(),
+                    ->searchable()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('products_count')
                     ->counts('products')
-                    ->label('Products'),
+                    ->label('Products')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->formatStateUsing(fn (CatalogStatus $state): string => Str::headline($state->value)),
-                Tables\Columns\TextColumn::make('sort_order')
-                    ->sortable(),
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make(),
@@ -89,7 +80,7 @@ class BrandsRelationManager extends RelationManager
                 Tables\Actions\CreateAction::make()
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['slug'] = CatalogFormHelper::uniqueSlug(
-                            $data['slug'] ?? $data['name'],
+                            $data['name'],
                             'brands',
                         );
 
@@ -99,11 +90,9 @@ class BrandsRelationManager extends RelationManager
             ->actions([
                 Tables\Actions\EditAction::make()
                     ->mutateFormDataUsing(function (array $data, Brand $record): array {
-                        $data['slug'] = CatalogFormHelper::uniqueSlug(
-                            $data['slug'] ?? $data['name'],
-                            'brands',
-                            $record->id,
-                        );
+                        $data['slug'] = filled($record->slug)
+                            ? (string) $record->slug
+                            : CatalogFormHelper::uniqueSlug($data['name'], 'brands', $record->id);
 
                         return $data;
                     }),

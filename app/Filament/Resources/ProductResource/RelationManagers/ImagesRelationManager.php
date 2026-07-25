@@ -34,15 +34,17 @@ class ImagesRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('image_url')
-            ->defaultSort('sort_order')
+            ->defaultSort('sort_order', 'asc')
             ->reorderable('sort_order')
             ->columns([
+                Tables\Columns\TextColumn::make('sort_order')
+                    ->label('#')
+                    ->numeric()
+                    ->sortable(),
                 Tables\Columns\ImageColumn::make('image_url')
                     ->disk('public')
                     ->visibility('public')
                     ->checkFileExistence(false),
-                Tables\Columns\TextColumn::make('sort_order')
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->toggleable(isToggledHiddenByDefault: true),

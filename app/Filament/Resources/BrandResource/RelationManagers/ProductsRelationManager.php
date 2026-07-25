@@ -7,8 +7,6 @@ use App\Filament\Support\CatalogFormHelper;
 use App\Models\Product;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Forms\Get;
-use Filament\Forms\Set;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -26,25 +24,19 @@ class ProductsRelationManager extends RelationManager
             ->schema([
                 Forms\Components\TextInput::make('name')
                     ->required()
-                    ->maxLength(255)
-                    ->live(onBlur: true)
-                    ->afterStateUpdated(function (Set $set, ?string $state, Get $get): void {
-                        if (filled($get('slug'))) {
-                            return;
-                        }
-
-                        $set('slug', Str::slug((string) $state));
-                    }),
-                Forms\Components\TextInput::make('slug')
-                    ->required()
-                    ->maxLength(255)
-                    ->alphaDash(),
+                    ->maxLength(255),
                 Forms\Components\TextInput::make('sku_code')
                     ->label('SKU')
                     ->required()
                     ->maxLength(100)
-                    ->unique(ignoreRecord: true)
-                    ->alphaDash(),
+                    ->alphaDash()
+                    ->helperText('SKU can be reused across products.'),
+                Forms\Components\TextInput::make('sort_order')
+                    ->numeric()
+                    ->minValue(0)
+                    ->default(0)
+                    ->required()
+                    ->helperText('Lower numbers appear first in the list.'),
                 Forms\Components\TextInput::make('regular_price')
                     ->numeric()
                     ->required()
@@ -66,6 +58,11 @@ class ProductsRelationManager extends RelationManager
                     ->required()
                     ->minValue(0)
                     ->default(0),
+                Forms\Components\TextInput::make('low_stock_threshold')
+                    ->numeric()
+                    ->required()
+                    ->minValue(0)
+                    ->default(10),
                 Forms\Components\Select::make('status')
                     ->enum(CatalogStatus::class)
                     ->options(collect(CatalogStatus::cases())->mapWithKeys(
@@ -80,15 +77,31 @@ class ProductsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('name')
+            ->defaultSort('sort_order', 'asc')
+            ->recordClasses(fn (Product $record): ?string => $record->isLowStock()
+                ? 'bg-danger-50 dark:bg-danger-950/40'
+                : null)
             ->columns([
+                Tables\Columns\TextColumn::make('sort_order')
+                    ->label('#')
+                    ->numeric()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('name')
-                    ->searchable(),
+                    ->searchable()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('sku_code')
-                    ->label('SKU'),
+                    ->label('SKU')
+                    ->searchable()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('sale_price')
-                    ->money('PKR'),
+                    ->money('PKR')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('stock_quantity')
-                    ->label('Stock'),
+                    ->label('Stock')
+                    ->sortable()
+                    ->color(fn (Product $record): string => $record->isLowStock()
+                        ? 'danger'
+                        : 'success'),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->formatStateUsing(fn (CatalogStatus $state): string => Str::headline($state->value)),
@@ -102,7 +115,7 @@ class ProductsRelationManager extends RelationManager
                         $owner = $this->getOwnerRecord();
                         $data['company_id'] = $owner->company_id;
                         $data['slug'] = CatalogFormHelper::uniqueSlug(
-                            $data['slug'] ?? $data['name'],
+                            $data['name'],
                             'products',
                         );
 
@@ -112,11 +125,9 @@ class ProductsRelationManager extends RelationManager
             ->actions([
                 Tables\Actions\EditAction::make()
                     ->mutateFormDataUsing(function (array $data, Product $record): array {
-                        $data['slug'] = CatalogFormHelper::uniqueSlug(
-                            $data['slug'] ?? $data['name'],
-                            'products',
-                            $record->id,
-                        );
+                        $data['slug'] = filled($record->slug)
+                            ? (string) $record->slug
+                            : CatalogFormHelper::uniqueSlug($data['name'], 'products', $record->id);
 
                         return $data;
                     }),

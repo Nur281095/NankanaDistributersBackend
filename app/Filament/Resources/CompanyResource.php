@@ -39,20 +39,13 @@ class CompanyResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->required()
-                            ->maxLength(255)
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(function (Forms\Set $set, ?string $state, Forms\Get $get): void {
-                                if (filled($get('slug'))) {
-                                    return;
-                                }
-
-                                $set('slug', Str::slug((string) $state));
-                            }),
-                        Forms\Components\TextInput::make('slug')
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('sort_order')
+                            ->numeric()
+                            ->minValue(0)
+                            ->default(0)
                             ->required()
-                            ->maxLength(255)
-                            ->unique(ignoreRecord: true)
-                            ->alphaDash(),
+                            ->helperText('Lower numbers appear first in the list.'),
                         PublicImageUpload::make('logo')
                             ->directory('catalog/companies')
                             ->columnSpanFull(),
@@ -66,11 +59,6 @@ class CompanyResource extends Resource
                             )->all())
                             ->required()
                             ->default(CatalogStatus::Active),
-                        Forms\Components\TextInput::make('sort_order')
-                            ->numeric()
-                            ->minValue(0)
-                            ->default(0)
-                            ->required(),
                     ]),
             ]);
     }
@@ -83,7 +71,7 @@ class CompanyResource extends Resource
                     ->columns(2)
                     ->schema([
                         Infolists\Components\TextEntry::make('name'),
-                        Infolists\Components\TextEntry::make('slug'),
+                        Infolists\Components\TextEntry::make('sort_order'),
                         Infolists\Components\ImageEntry::make('logo')
                             ->disk('public')
                             ->visibility('public')
@@ -95,7 +83,6 @@ class CompanyResource extends Resource
                         Infolists\Components\TextEntry::make('status')
                             ->badge()
                             ->formatStateUsing(fn (CatalogStatus $state): string => Str::headline($state->value)),
-                        Infolists\Components\TextEntry::make('sort_order'),
                     ]),
             ]);
     }
@@ -103,8 +90,12 @@ class CompanyResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->defaultSort('sort_order')
+            ->defaultSort('sort_order', 'asc')
             ->columns([
+                Tables\Columns\TextColumn::make('sort_order')
+                    ->label('#')
+                    ->numeric()
+                    ->sortable(),
                 Tables\Columns\ImageColumn::make('logo')
                     ->disk('public')
                     ->visibility('public')
@@ -113,9 +104,6 @@ class CompanyResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('slug')
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('brands_count')
                     ->counts('brands')
                     ->label('Brands')
@@ -127,9 +115,6 @@ class CompanyResource extends Resource
                         CatalogStatus::Inactive => 'gray',
                     })
                     ->formatStateUsing(fn (CatalogStatus $state): string => Str::headline($state->value)),
-                Tables\Columns\TextColumn::make('sort_order')
-                    ->numeric()
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
@@ -182,6 +167,6 @@ class CompanyResource extends Resource
 
     public static function getGloballySearchableAttributes(): array
     {
-        return ['name', 'slug'];
+        return ['name'];
     }
 }

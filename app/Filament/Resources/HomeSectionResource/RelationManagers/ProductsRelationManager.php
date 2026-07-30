@@ -5,6 +5,7 @@ namespace App\Filament\Resources\HomeSectionResource\RelationManagers;
 use App\Enums\CatalogStatus;
 use App\Enums\HomeSectionType;
 use App\Enums\ProductCollectionSource;
+use App\Filament\Support\LowStockRow;
 use App\Models\HomeSection;
 use App\Models\Product;
 use Filament\Forms;
@@ -32,9 +33,7 @@ class ProductsRelationManager extends RelationManager
             ->recordTitleAttribute('name')
             ->defaultSort('home_section_products.sort_order')
             ->reorderable('sort_order')
-            ->recordClasses(fn (Product $record): ?string => $record->isLowStock()
-                ? 'bg-danger-50 dark:bg-danger-950/40'
-                : null)
+            ->recordClasses(fn (Product $record): ?string => LowStockRow::classes($record))
             ->columns([
                 Tables\Columns\TextColumn::make('pivot.sort_order')
                     ->label('#')

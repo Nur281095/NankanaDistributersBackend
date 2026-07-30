@@ -26,7 +26,6 @@ class ProductResource extends JsonResource
             'stock_quantity' => $this->stock_quantity,
             'in_stock' => $this->stock_quantity > 0,
             'unit' => $this->unit,
-            'is_taxable' => $this->is_taxable,
             'status' => $this->status?->value,
             'is_featured' => $this->is_featured,
             'is_suggested' => $this->is_suggested,

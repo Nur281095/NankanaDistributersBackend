@@ -183,7 +183,6 @@ class MinimalSampleSeeder extends Seeder
             'stock_quantity' => 50,
             'low_stock_threshold' => 5,
             'unit' => '1pc',
-            'is_taxable' => false,
             'status' => CatalogStatus::Active,
             'is_featured' => true,
             'is_suggested' => false,

@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Resources\ProductResource;
+use App\Filament\Support\LowStockRow;
 use App\Filament\Widgets\Concerns\RequiresActiveAdmin;
 use App\Models\Product;
 use App\Services\DashboardService;
@@ -31,7 +32,7 @@ class LowStockProductsWidget extends BaseWidget
                     ->orderBy('stock_quantity')
                     ->limit(10)
             )
-            ->recordClasses('bg-danger-50 dark:bg-danger-950/40')
+            ->recordClasses(LowStockRow::CLASS_NAME)
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Product')

@@ -3,9 +3,10 @@
 namespace App\Filament\Resources\BrandResource\RelationManagers;
 
 use App\Enums\CatalogStatus;
+use App\Filament\Forms\ProductForm;
 use App\Filament\Support\CatalogFormHelper;
+use App\Filament\Support\LowStockRow;
 use App\Models\Product;
-use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
@@ -20,57 +21,8 @@ class ProductsRelationManager extends RelationManager
 
     public function form(Form $form): Form
     {
-        return $form
-            ->schema([
-                Forms\Components\TextInput::make('name')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('sku_code')
-                    ->label('SKU')
-                    ->required()
-                    ->maxLength(100)
-                    ->alphaDash()
-                    ->helperText('SKU can be reused across products.'),
-                Forms\Components\TextInput::make('sort_order')
-                    ->numeric()
-                    ->minValue(0)
-                    ->default(0)
-                    ->required()
-                    ->helperText('Lower numbers appear first in the list.'),
-                Forms\Components\TextInput::make('regular_price')
-                    ->numeric()
-                    ->required()
-                    ->prefix('PKR')
-                    ->minValue(0)
-                    ->step(0.01),
-                Forms\Components\TextInput::make('sale_price')
-                    ->numeric()
-                    ->prefix('PKR')
-                    ->minValue(0)
-                    ->step(0.01),
-                Forms\Components\TextInput::make('purchase_price')
-                    ->numeric()
-                    ->prefix('PKR')
-                    ->minValue(0)
-                    ->step(0.01),
-                Forms\Components\TextInput::make('stock_quantity')
-                    ->numeric()
-                    ->required()
-                    ->minValue(0)
-                    ->default(0),
-                Forms\Components\TextInput::make('low_stock_threshold')
-                    ->numeric()
-                    ->required()
-                    ->minValue(0)
-                    ->default(10),
-                Forms\Components\Select::make('status')
-                    ->enum(CatalogStatus::class)
-                    ->options(collect(CatalogStatus::cases())->mapWithKeys(
-                        fn (CatalogStatus $status): array => [$status->value => Str::headline($status->value)]
-                    )->all())
-                    ->required()
-                    ->default(CatalogStatus::Active),
-            ]);
+        // Same fields as Product create/edit; company + brand come from the parent brand.
+        return $form->schema(ProductForm::schema(includeCatalogPlacement: false));
     }
 
     public function table(Table $table): Table
@@ -78,14 +30,16 @@ class ProductsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('name')
             ->defaultSort('sort_order', 'asc')
-            ->recordClasses(fn (Product $record): ?string => $record->isLowStock()
-                ? 'bg-danger-50 dark:bg-danger-950/40'
-                : null)
+            ->recordClasses(fn (Product $record): ?string => LowStockRow::classes($record))
             ->columns([
                 Tables\Columns\TextColumn::make('sort_order')
                     ->label('#')
                     ->numeric()
                     ->sortable(),
+                Tables\Columns\ImageColumn::make('image')
+                    ->disk('public')
+                    ->visibility('public')
+                    ->checkFileExistence(false),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
@@ -94,6 +48,7 @@ class ProductsRelationManager extends RelationManager
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('sale_price')
+                    ->label('Sale')
                     ->money('PKR')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('stock_quantity')
@@ -102,6 +57,10 @@ class ProductsRelationManager extends RelationManager
                     ->color(fn (Product $record): string => $record->isLowStock()
                         ? 'danger'
                         : 'success'),
+                Tables\Columns\IconColumn::make('is_featured')
+                    ->boolean(),
+                Tables\Columns\IconColumn::make('is_suggested')
+                    ->boolean(),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->formatStateUsing(fn (CatalogStatus $state): string => Str::headline($state->value)),
@@ -111,6 +70,7 @@ class ProductsRelationManager extends RelationManager
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make()
+                    ->modalWidth('5xl')
                     ->mutateFormDataUsing(function (array $data): array {
                         $owner = $this->getOwnerRecord();
                         $data['company_id'] = $owner->company_id;
@@ -124,6 +84,7 @@ class ProductsRelationManager extends RelationManager
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
+                    ->modalWidth('5xl')
                     ->mutateFormDataUsing(function (array $data, Product $record): array {
                         $data['slug'] = filled($record->slug)
                             ? (string) $record->slug

@@ -26,7 +26,6 @@ return new class extends Migration
             $table->unsignedInteger('stock_quantity')->default(0);
             $table->unsignedInteger('low_stock_threshold')->default(10);
             $table->string('unit', 50)->nullable();
-            $table->boolean('is_taxable')->default(false);
             $table->string('status', 20)->default('active');
             $table->boolean('is_featured')->default(false);
             $table->boolean('is_suggested')->default(false);
